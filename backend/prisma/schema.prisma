@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+model Company {
+  id String @id @default(cuid())
+  name String
+  users User[]
+  projects Project[]
+}
+model User {
+  id String @id @default(cuid())
+  companyId String
+  company Company @relation(fields: [companyId], references: [id])
+  name String
+  email String @unique
+  passwordHash String
+  role String
+  contractorId String?
+  active Boolean @default(true)
+  memberships Member[]
+}
+model Project {
+  id String @id @default(cuid())
+  companyId String
+  company Company @relation(fields: [companyId], references: [id])
+  name String
+  code String
+  address String
+  status String @default("PLANNING")
+  startsOn String
+  endsOn String
+  createdAt DateTime @default(now())
+  sites Site[]
+  members Member[]
+  records Record[]
+  ledger Ledger[]
+  audits Audit[]
+  @@unique([companyId, code])
+}
+model Site {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id])
+  name String
+  address String
+  stocks Stock[]
+  @@unique([projectId, name])
+}
+model Member {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id])
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  role String
+  @@unique([projectId, userId])
+}
+// Validated domain aggregates. Payload schemas are centralized in domain/schemas.ts.
+// Cross-aggregate invariants are enforced within serializable transactions.
+model Record {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id])
+  kind String
+  key String
+  status String @default("DRAFT")
+  data Json
+  createdBy String
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([projectId, kind, key])
+  @@index([projectId, kind, status])
+}
+model Stock {
+  id String @id @default(cuid())
+  siteId String
+  site Site @relation(fields: [siteId], references: [id])
+  materialId String
+  quantity Decimal @db.Decimal(18, 3)
+  averageCostMinor Int @default(0)
+  @@unique([siteId, materialId])
+}
+model Ledger {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id])
+  costCode String
+  sourceType String
+  sourceId String
+  amountMinor Int
+  createdAt DateTime @default(now())
+  @@unique([sourceType, sourceId])
+  @@index([projectId, costCode])
+}
+model Audit {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id])
+  actorId String
+  action String
+  entityId String
+  detail Json
+  createdAt DateTime @default(now())
+  @@index([projectId, createdAt])
+}
