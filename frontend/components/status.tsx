@@ -1,0 +1,2 @@
+import { label } from '../lib/format';
+export function Status({ value }: {value: string}) { const tone = ['ACTIVE','APPROVED','ACCOUNTS_APPROVED','PAID','POSTED','ISSUED','RECEIVED'].includes(value) ? 'green' : ['REJECTED','CANCELLED','ABSENT'].includes(value) ? 'red' : ['DRAFT','PLANNING','SUPERSEDED'].includes(value) ? 'gray' : 'amber'; return <span className={`status ${tone}`}><span/>{label(value)}</span>; }
