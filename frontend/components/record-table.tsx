@@ -1,0 +1,32 @@
+'use client';
+import { useMemo, useState } from 'react';
+import { Plus, Search, SlidersHorizontal, Download, Eye, ArrowUpRight } from 'lucide-react';
+import { modules } from '../lib/modules';
+import { label, money, number, readableDate } from '../lib/format';
+import { actions, canCreate } from '../lib/permissions';
+import { DomainRecord } from '../lib/types';
+import { useWorkspace } from './provider';
+import { Modal } from './modal';
+import { RecordForm } from './record-form';
+import { Status } from './status';
+import { Empty } from './empty';
+export function RecordTable({ kind }: {kind: string}) {
+  const { snapshot: s, projectId, mutate } = useWorkspace(); const config = modules[kind];
+  const [search,setSearch] = useState(''), [filter,setFilter] = useState('ALL'), [adding,setAdding] = useState(false), [view,setView] = useState<DomainRecord|null>(null), [error,setError] = useState(''), [busy,setBusy] = useState(''), [page,setPage] = useState(0);
+  const records = s?.records.filter(r => r.kind === kind) || [];
+  const rows = useMemo(() => records.filter(r => (filter === 'ALL' || r.status === filter) && JSON.stringify(Object.fromEntries(Object.entries(r.data).filter(([k]) => !['content','photo'].includes(k)))).toLowerCase().includes(search.toLowerCase())),[records,filter,search]);
+  if (!s || !config) return null;
+  function display(key: string, value: any) {
+    if (key === 'siteId' || key === 'destinationSiteId') return s!.project.sites.find(site => site.id === value)?.name || '—';
+    if (key.endsWith('Id')) { const ref = s!.records.find(r => r.id === value); return ref?.data.name || ref?.data.title || ref?.data.description || `${ref?.kind || 'Record'} ${String(value).slice(0,8)}`; }
+    if (key.endsWith('Minor') || ['gross','retention','tax','net','advance','penalty'].includes(key)) return money(Number(value || 0));
+    if (key === 'percent') return <div className="inline-progress"><span>{value}%</span><div className="progress-track"><i style={{width:`${Math.min(value,100)}%`}}/></div></div>;
+    if (value === undefined || value === '') return '—';
+    if (typeof value === 'number') return number(value);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) return readableDate(value);
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
+  }
+  async function transition(r: DomainRecord, status: string) {setBusy(r.id);setError('');try {await mutate(`projects/${projectId}/records/${r.id}/transition`,{status});}catch(e){setError((e as Error).message);}finally{setBusy('');}}
+  return <><div className="page-heading"><div><span className="eyebrow">PROJECT WORKSPACE</span><h1>{config.title}</h1><p>{config.subtitle}</p></div>{canCreate(s.role,kind) && <button className="button primary" onClick={() => setAdding(true)}><Plus size={18}/>New {config.singular}</button>}</div><div className="panel"><div className="table-toolbar"><div className="search-input"><Search size={18}/><input aria-label={`Search ${config.title}`} placeholder={`Search ${config.title.toLowerCase()}…`} value={search} onChange={e => {setSearch(e.target.value);setPage(0);}}/></div><div className="toolbar-right"><SlidersHorizontal size={17}/><select aria-label="Filter by status" value={filter} onChange={e => {setFilter(e.target.value);setPage(0);}}><option value="ALL">All statuses</option>{[...new Set(records.map(r => r.status))].map(v => <option key={v}>{v}</option>)}</select><span className="count-badge">{rows.length} records</span></div></div>{error && <div className="form-error" role="alert">{error}</div>}{!rows.length ? <Empty title={search || filter !== 'ALL' ? 'No matching records' : undefined} text={search || filter !== 'ALL' ? 'Try a different search or status filter.' : undefined}/> : <div className="table-scroll"><table><thead><tr>{config.columns.map(k => <th key={k}>{label(k.replace(/Id$/,''))}</th>)}<th>Workflow</th><th className="align-right">Actions</th></tr></thead><tbody>{rows.slice(page * 12, page * 12 + 12).map(r => <tr key={r.id}>{config.columns.map((k,i) => <td key={k} className={i === 0 ? 'strong' : ''}>{display(k,r.data[k])}</td>)}<td><Status value={r.status}/></td><td><div className="row-actions"><button className="icon-button" aria-label="View record details" onClick={() => setView(r)}><Eye size={17}/></button>{actions(kind,r.status,s.role).map(action => <button disabled={busy === r.id} key={action} className={`text-button ${action === 'REJECTED' ? 'danger' : ''}`} onClick={() => void transition(r,action)}>{label(action)}</button>)}{kind === 'budget' && r.status === 'APPROVED' && canCreate(s.role,kind) && <button className="text-button" onClick={async () => {try {await mutate(`projects/${projectId}/budgets/${r.id}/revise`,{});}catch(e){setError((e as Error).message);}}}>Revise</button>}</div></td></tr>)}</tbody></table></div>}<div className="table-footer"><span>Showing {rows.length ? page * 12 + 1 : 0}–{Math.min(page * 12 + 12,rows.length)} of {rows.length}</span><div><button className="button secondary small-button" disabled={!page} onClick={() => setPage(page - 1)}>Previous</button><button className="button secondary small-button" disabled={(page+1)*12 >= rows.length} onClick={() => setPage(page + 1)}>Next</button></div></div></div>{adding && <Modal title={`New ${config.singular}`} close={() => setAdding(false)}><RecordForm fields={config.fields} close={() => setAdding(false)} onSubmit={data => mutate(`projects/${projectId}/records/${kind}`,data)}/></Modal>}{view && <Modal title={`${config.singular} details`} close={() => setView(null)}><div className="detail-body"><Status value={view.status}/><dl>{Object.entries(view.data).filter(([k]) => !['content','photo','breakdown'].includes(k)).map(([k,v]) => <div key={k}><dt>{label(k)}</dt><dd>{display(k,v)}</dd></div>)}</dl>{view.data.photo && <img className="evidence-photo" src={view.data.photo} alt="Site progress evidence"/>}{view.data.content && <a className="button primary" href={view.data.content} download={view.data.fileName}><Download size={18}/>Download document</a>}{view.data.breakdown && <div className="table-scroll"><table><thead><tr><th>Worker</th><th>Days</th><th>Overtime</th><th>Wages</th></tr></thead><tbody>{view.data.breakdown.map((b: any) => <tr key={b.workerId}><td>{b.name}</td><td>{b.days}</td><td>{b.otHours}h</td><td>{money(b.amountMinor)}</td></tr>)}</tbody></table></div>}<p className="muted small">Created {readableDate(view.createdAt)} · Revision {view.version}</p></div></Modal>}</>;
+}
