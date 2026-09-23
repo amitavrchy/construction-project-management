@@ -10,9 +10,23 @@ import { contracts } from './domain/contracts';
 import { progress } from './domain/progress';
 import { recordKey } from './domain/keys';
 import { approve } from './domain/approvals';
+import { Cache } from './cache';
 @Injectable()
 export class ProjectsService {
-  constructor(@Inject(Db) readonly db: Db) {}
+  constructor(@Inject(Db) readonly db: Db, @Inject(Cache) private cache?: Cache) {}
+  async stockSnapshot(projectId: string) {
+    const load = () => this.db.stock.findMany({where:{site:{projectId}}});
+    return this.cache ? this.cache.read(`stock:${projectId}`,10,load) : load();
+  }
+  async boqTree(actor: Actor, projectId: string) {
+    actor = await this.scope(actor, projectId);
+    if(actor.role === 'CONTRACTOR') throw new ForbiddenException();
+    const load = async () => {
+      const records = await this.db.record.findMany({where:{projectId,kind:'boq'}});
+      return records.reduce<Record<string,unknown[]>>((tree,r)=>{const d=r.data as any;(tree[d.costCode] ||= []).push({id:r.id,...d});return tree;},{});
+    };
+    return this.cache ? this.cache.read(`boq:${projectId}`,60,load) : load();
+  }
   async scope(actor: Actor, projectId: string): Promise<Actor> {
     const project = await this.db.project.findFirst({ where: { id: projectId, companyId: actor.companyId } });
     if (!project) throw new ForbiddenException('Project access denied');
@@ -42,7 +56,7 @@ export class ProjectsService {
   async create(actor: Actor, projectId: string, kind: string, input: unknown) {
     actor = await this.scope(actor, projectId); canWrite(actor, kind);
     const parsed = parseRecord(kind, input);
-    return this.db.atomic(async tx => {
+    const created = await this.db.atomic(async tx => {
       const c: Context = { tx, projectId, actor };
       const project = await tx.project.findUniqueOrThrow({ where: { id: projectId } });
       if (['COMPLETED','CANCELLED'].includes(project.status)) throw new Error('This project is closed');
@@ -58,18 +72,66 @@ export class ProjectsService {
       await audit(c, `${kind}.created`, id);
       return record;
     });
+    await this.cache?.invalidate(projectId);
+    return created;
   }
   async transition(actor: Actor, projectId: string, id: string, status: string) {
     actor = await this.scope(actor, projectId);
-    return this.db.atomic(tx => approve({ tx, projectId, actor }, id, status));
+    return this.db.atomic(async tx => {
+      const p = await tx.project.findUniqueOrThrow({ where: { id: projectId } });
+      if (['COMPLETED','CANCELLED'].includes(p.status)) throw new Error('This project is closed');
+      return approve({ tx, projectId, actor }, id, status);
+    });
+  }
+  async bulkAttendance(actor: Actor, projectId: string, inputs: unknown[]) {
+    actor = await this.scope(actor, projectId); canWrite(actor, 'attendance');
+    if(!Array.isArray(inputs) || inputs.length < 1 || inputs.length > 200) throw new Error('Submit between 1 and 200 attendance rows');
+    const parsed = inputs.map(input => parseRecord('attendance', input));
+    return this.db.atomic(async tx => {
+      const c = {tx,projectId,actor};
+      const project = await tx.project.findUniqueOrThrow({where:{id:projectId}});
+      if(['COMPLETED','CANCELLED'].includes(project.status)) throw new Error('This project is closed');
+      const result = [];
+      for(const input of parsed){
+        const data = await labor(c,'attendance',input);const id = randomUUID();
+        result.push(await tx.record.create({data:{id,projectId,kind:'attendance',key:recordKey('attendance',data,id),status:'POSTED',data,createdBy:actor.id}}));
+      }
+      await audit(c,'attendance.bulk_created',projectId,{count:result.length});return result;
+    });
+  }
+  async editBudget(actor: Actor, projectId: string, id: string, input: unknown) {
+    actor = await this.scope(actor, projectId); canWrite(actor, 'budget');
+    const parsed = parseRecord('budget', input);
+    return this.db.atomic(async tx => {
+      const c = { tx, projectId, actor }; const r = await getRecord(c, id, 'budget');
+      if (r.status !== 'DRAFT') throw new Error('Only draft budgets can be edited');
+      const p = await tx.project.findUniqueOrThrow({ where: { id: projectId } });
+      if (['COMPLETED','CANCELLED'].includes(p.status)) throw new Error('This project is closed');
+      if (r.data.previousId && parsed.costCode !== r.data.costCode) throw new Error('A revision must keep its original cost code');
+      const result = await tx.record.update({ where: { id }, data: { data: { ...r.data, ...parsed, diffMinor: parsed.amountMinor - (r.data.previousAmountMinor || r.data.amountMinor) }, version: { increment: 1 } } });
+      await audit(c, 'budget.edited', id, { previousAmountMinor: r.data.amountMinor, amountMinor: parsed.amountMinor }); return result;
+    });
+  }
+  async releaseRetention(actor: Actor, projectId: string, id: string) {
+    actor = await this.scope(actor, projectId);
+    if (actor.role !== 'ACCOUNTANT') throw new ForbiddenException('Accounts approval required');
+    return this.db.atomic(async tx => {
+      const c = { tx, projectId, actor }; const bill = await getRecord(c, id, 'bill');
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka' }).format(new Date());
+      if (bill.status !== 'PAID' || !bill.data.retention || bill.data.retentionReleasedOn || bill.data.defectsUntil > today) throw new Error('Retention is not eligible for release');
+      await audit(c, 'bill.retention_released', id, { amountMinor: bill.data.retention });
+      return tx.record.update({ where: { id }, data: { data: { ...bill.data, retentionReleasedOn: today, retentionReleasedBy: actor.id }, version: { increment: 1 } } });
+    });
   }
   async reviseBudget(actor: Actor, projectId: string, id: string) {
     actor = await this.scope(actor, projectId); canWrite(actor, 'budget');
     return this.db.atomic(async tx => {
       const c = { tx, projectId, actor }; const source = await getRecord(c, id, 'budget');
+      const p = await tx.project.findUniqueOrThrow({ where: { id: projectId } });
+      if (['COMPLETED','CANCELLED'].includes(p.status)) throw new Error('This project is closed');
       if (source.status !== 'APPROVED') throw new Error('Only approved budgets can be revised');
       const cloneId = randomUUID();
-      const result = await tx.record.create({ data: { id: cloneId, key: cloneId, kind: 'budget', projectId, createdBy: actor.id, data: { ...source.data, name: `${source.data.name} revision`, previousId: id, versionNumber: (source.data.versionNumber || 1) + 1 } } });
+      const result = await tx.record.create({ data: { id: cloneId, key: cloneId, kind: 'budget', projectId, createdBy: actor.id, data: { ...source.data, name: `${source.data.name} revision`, previousId: id, previousAmountMinor: source.data.amountMinor, diffMinor: 0, versionNumber: (source.data.versionNumber || 1) + 1 } } });
       await audit(c, 'budget.revised', cloneId, { previousId: id }); return result;
     });
   }

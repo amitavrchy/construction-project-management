@@ -16,9 +16,10 @@ import { ProjectsController } from './projects.controller';
 import { TeamController } from './team.controller';
 import { Errors } from './errors';
 import { startJobs } from './jobs';
+import { Cache } from './cache';
 @Controller('health')
 class HealthController { constructor(private readonly db: Db) {} @Get() async check() { return { status: 'ok' }; } }
-@Module({ controllers: [HealthController, AuthController, ProjectsController, TeamController], providers: [Db, ProjectsService] })
+@Module({ controllers: [HealthController, AuthController, ProjectsController, TeamController], providers: [Db, Cache, ProjectsService] })
 class AppModule {}
 async function main() {
   if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32 || process.env.JWT_SECRET.startsWith('replace-')) throw new Error('Set JWT_SECRET to at least 32 random characters');

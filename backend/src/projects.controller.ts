@@ -10,11 +10,20 @@ export class ProjectsController {
   @Get() projects(@Req() req: any) { return this.service.projects(req.actor); }
   @Post() create(@Req() req: any, @Body() input: unknown) { return this.service.createProject(req.actor, input); }
   @Get(':id') snapshot(@Req() req: any, @Param('id') id: string) { return this.service.snapshot(req.actor, id); }
+  @Get(':id/boq-tree') boqTree(@Req() req: any, @Param('id') id: string) { return this.service.boqTree(req.actor, id); }
+  @Get(':id/stock-snapshot') async stock(@Req() req: any, @Param('id') id: string) {
+    const actor = await this.service.scope(req.actor, id);
+    if(actor.role === 'CONTRACTOR') throw new ForbiddenException();
+    return this.service.stockSnapshot(id);
+  }
   @Post(':id/records/:kind') record(@Req() req: any, @Param('id') id: string, @Param('kind') kind: string, @Body() data: unknown) { return this.service.create(req.actor, id, kind, data); }
+  @Post(':id/attendance/bulk') bulkAttendance(@Req() req: any, @Param('id') id: string, @Body() data: unknown) { return this.service.bulkAttendance(req.actor, id, z.array(z.unknown()).min(1).max(200).parse(data)); }
   @Post(':id/records/:recordId/transition') transition(@Req() req: any, @Param('id') id: string, @Param('recordId') recordId: string, @Body() data: unknown) {
     return this.service.transition(req.actor, id, recordId, z.object({ status: z.string().max(40) }).parse(data).status);
   }
   @Post(':id/budgets/:recordId/revise') revise(@Req() req: any, @Param('id') id: string, @Param('recordId') recordId: string) { return this.service.reviseBudget(req.actor, id, recordId); }
+  @Patch(':id/budgets/:recordId') editBudget(@Req() req: any, @Param('id') id: string, @Param('recordId') recordId: string, @Body() data: unknown) { return this.service.editBudget(req.actor, id, recordId, data); }
+  @Post(':id/bills/:recordId/release-retention') releaseRetention(@Req() req: any, @Param('id') id: string, @Param('recordId') recordId: string) { return this.service.releaseRetention(req.actor, id, recordId); }
   @Patch(':id/status') async status(@Req() req: any, @Param('id') id: string, @Body() input: unknown) {
     const actor = await this.service.scope(req.actor, id);
     if (!['COMPANY_ADMIN','PROJECT_MANAGER'].includes(actor.role)) throw new ForbiddenException();
