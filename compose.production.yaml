@@ -1,0 +1,28 @@
+services:
+  api:
+    build:
+      context: .
+      target: api
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://sitecraft:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/sitecraft
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      APP_URL: ${APP_URL:?Set APP_URL}
+      CORS_ORIGINS: ${APP_URL:?Set APP_URL}
+      PORT: 4000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        API_URL: http://api:4000
+    ports: ["127.0.0.1:3000:3000"]
+    depends_on: [api]
+    restart: unless-stopped

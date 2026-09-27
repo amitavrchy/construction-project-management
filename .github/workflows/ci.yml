@@ -1,0 +1,58 @@
+name: Build and verify
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: sitecraft
+          POSTGRES_PASSWORD: sitecraft
+          POSTGRES_DB: sitecraft
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U sitecraft"
+          --health-interval 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+    env:
+      DATABASE_URL: postgresql://sitecraft:sitecraft@localhost:5432/sitecraft
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci-only-random-secret-longer-than-thirty-two-characters
+      SEED_PASSWORD: ci-only-password-for-automated-testing
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run db:migrate
+      - run: npm run db:seed
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm audit --audit-level=high
+      - run: npx playwright install --with-deps chromium
+      - name: Browser verification
+        run: |
+          npm run start -w backend > /tmp/api.log 2>&1 &
+          npm run start -w frontend > /tmp/web.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000 >/dev/null && curl -sf http://localhost:4000/api/health >/dev/null; then break; fi
+            sleep 2
+          done
+          npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-verification
+          path: |
+            artifacts/
+            test-results/
