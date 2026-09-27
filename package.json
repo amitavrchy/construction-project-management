@@ -1,1 +1,37 @@
-{"name":"sitecraft","private":true,"workspaces":["frontend","backend"],"scripts":{"dev":"concurrently -n api,web -c green,blue \"npm run dev -w backend\" \"npm run dev -w frontend\"","build":"npm run build -w backend && npm run build -w frontend","test":"npm run test -w backend","typecheck":"npm run typecheck --workspaces","db:generate":"npm run db:generate -w backend","db:migrate":"npm run db:migrate -w backend","db:seed":"npm run db:seed -w backend"},"devDependencies":{"@playwright/test":"^1.64.1","@types/node":"^24.10.0","concurrently":"^9.2.1","deepmerge-ts":"^8.0.2","prettier":"^3.9.10","tsx":"^4.20.6","typescript":"^5.9.3"},"engines":{"node":">=22"},"overrides":{"multer":"^2.5.0","deepmerge-ts":"^8.0.2"}}
+{
+  "name": "sitecraft",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c green,blue \"npm run dev -w backend\" \"npm run dev -w frontend\"",
+    "build": "npm run build -w backend && npm run build -w frontend",
+    "test": "npm run test -w backend",
+    "typecheck": "npm run typecheck --workspaces",
+    "db:generate": "npm run db:generate -w backend",
+    "db:migrate": "npm run db:migrate -w backend",
+    "db:seed": "npm run db:seed -w backend",
+    "setup": "node scripts/setup.mjs",
+    "test:e2e": "playwright test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^24.10.0",
+    "concurrently": "^9.2.1",
+    "deepmerge-ts": "^8.0.2",
+    "prettier": "^3.9.10",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "overrides": {
+    "multer": "^2.5.0",
+    "deepmerge-ts": "^8.0.2"
+  }
+}
