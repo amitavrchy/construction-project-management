@@ -12,7 +12,10 @@ export async function inventory(
   }
   if (kind === "receipt") {
     await getRecord(c, d.supplierId, "supplier");
-    const duplicate = (await list(c, "receipt")).some(
+    const duplicate = [
+      ...(await list(c, "receipt")),
+      ...(await list(c, "delivery")),
+    ].some(
       (r) =>
         r.data.supplierId === d.supplierId &&
         r.data.invoiceNo.toLowerCase() === d.invoiceNo.toLowerCase(),

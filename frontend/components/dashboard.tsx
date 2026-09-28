@@ -23,11 +23,7 @@ export function Dashboard() {
   if (!s) return null;
   const get = (kind: string) => s.records.filter((r) => r.kind === kind);
   const budgets = get("budget").filter((r) => r.status === "APPROVED");
-  const totalBudget =
-    budgets.reduce((n, r) => n + r.data.amountMinor, 0) +
-    get("variation")
-      .filter((r) => r.status === "APPROVED")
-      .reduce((n, r) => n + r.data.deltaAmountMinor, 0);
+  const totalBudget = costHeads(s).reduce((sum, head) => sum + head.budget, 0);
   const actual = s.ledger.reduce((n, r) => n + r.amountMinor, 0);
   const latest = new Map<string, number>();
   for (const r of get("progress"))
@@ -69,6 +65,10 @@ export function Dashboard() {
           </h1>
           <p>Here’s what’s happening across your site today.</p>
         </div>
+        <Link href="/control" className="button secondary">
+          Open control room
+          <ArrowUpRight size={17} />
+        </Link>
         <div className="date-pill">
           <Clock3 size={17} />
           {readableDate(today())}

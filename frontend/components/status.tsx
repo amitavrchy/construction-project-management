@@ -8,6 +8,10 @@ export function Status({ value }: { value: string }) {
     "POSTED",
     "ISSUED",
     "RECEIVED",
+    "DONE",
+    "MITIGATED",
+    "CLOSED",
+    "ANSWERED",
   ].includes(value)
     ? "green"
     : ["REJECTED", "CANCELLED", "ABSENT"].includes(value)

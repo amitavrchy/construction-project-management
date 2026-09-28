@@ -1,9 +1,10 @@
 node_modules
+.legacy-dependencies
 .next
 dist
 package-lock.json
 artifacts
 test-results
-frontend/AGENTS.md
-frontend/next-env.d.ts
+AGENTS.md
+next-env.d.ts
 Project_spec.md

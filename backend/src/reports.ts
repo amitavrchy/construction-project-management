@@ -6,8 +6,13 @@ export function budgetReport(
   const approved = records.filter(
     (r) => r.kind === "budget" && r.status === "APPROVED",
   );
+  const release = records.find(
+    (r) => r.kind === "budgetrelease" && r.status === "APPROVED",
+  );
+  const releaseLines: Data[] = release ? (release.data as Data).lines : [];
   const codes = new Set([
     ...approved.map((r) => (r.data as Data).costCode as string),
+    ...releaseLines.map((l) => l.costCode as string),
     ...records
       .filter((r) => r.kind === "variation" && r.status === "APPROVED")
       .map(
@@ -21,9 +26,13 @@ export function budgetReport(
     ...ledger.map((l) => l.costCode),
   ]);
   return [...codes].map((costCode) => {
-    const budget = approved
-      .filter((r) => (r.data as Data).costCode === costCode)
-      .reduce((s, r) => s + (r.data as Data).amountMinor, 0);
+    const budget = release
+      ? releaseLines
+          .filter((l) => l.costCode === costCode)
+          .reduce((s, l) => s + l.amountMinor, 0)
+      : approved
+          .filter((r) => (r.data as Data).costCode === costCode)
+          .reduce((s, r) => s + (r.data as Data).amountMinor, 0);
     const variation = records
       .filter(
         (r) =>

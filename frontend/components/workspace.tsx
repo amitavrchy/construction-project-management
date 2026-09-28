@@ -14,6 +14,8 @@ import { Team } from "./team";
 import { Settings } from "./settings";
 import { navigation, modules } from "../lib/modules";
 import { label } from "../lib/format";
+import { AdvancedPage } from "./advanced/page";
+import { CommandPalette } from "./command-palette";
 export function Workspace() {
   const {
     user,
@@ -75,9 +77,29 @@ export function Workspace() {
     );
   else if (
     contractor &&
-    !["bill", "workorder", "contractor", "settings"].includes(section)
+    !["bill", "workorder", "contractor", "settings", "commercial"].includes(
+      section,
+    )
   )
     content = <RecordTable key="bill" kind="bill" />;
+  else if (
+    [
+      "control",
+      "planning",
+      "approvals",
+      "procurement",
+      "commercial",
+      "budget-versions",
+      "risks",
+      "rfis",
+      "site-diary",
+      "activity",
+      "automation",
+    ].includes(section)
+  )
+    content = (
+      <AdvancedPage key={`${projectId}:${section}`} section={section} />
+    );
   else if (section === "dashboard") content = <Dashboard />;
   else if (section in modules)
     content = <RecordTable key={`${projectId}:${section}`} kind={section} />;
@@ -125,7 +147,8 @@ export function Workspace() {
           {navigation.map((group) => {
             const items = group.items.filter(
               ([id]) =>
-                !contractor || ["bill", "workorder", "contractor"].includes(id),
+                !contractor ||
+                ["bill", "workorder", "contractor", "commercial"].includes(id),
             );
             if (!items.length) return null;
             return (
@@ -225,6 +248,7 @@ export function Workspace() {
             <strong>{name}</strong>
           </div>
           <div className="topbar-actions">
+            <CommandPalette />
             <span className="connection">
               <span className="live-dot" />
               Connected

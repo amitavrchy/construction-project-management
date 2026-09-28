@@ -31,28 +31,35 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
-      - run: npm run db:generate
-      - run: npm run db:migrate
-      - run: npm run db:seed
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
-      - run: npm audit --audit-level=high
-      - run: npx playwright install --with-deps chromium
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - run: npm ci --prefix backend
+      - run: npm ci --prefix frontend
+      - run: npm run db:generate --prefix backend
+      - run: npm run db:migrate --prefix backend
+      - run: npm run db:seed --prefix backend
+      - run: npm run typecheck --prefix backend
+      - run: npm run typecheck --prefix frontend
+      - run: npm test --prefix backend
+      - run: npm run build --prefix backend
+      - run: npm run build --prefix frontend
+      - run: npm audit --prefix backend --audit-level=high
+      - run: npm audit --prefix frontend --audit-level=high
+      - run: npm exec --prefix frontend -- playwright install --with-deps chromium
       - name: Browser verification
         run: |
-          npm run start -w backend > /tmp/api.log 2>&1 &
-          npm run start -w frontend > /tmp/web.log 2>&1 &
+          npm run start --prefix backend > /tmp/api.log 2>&1 &
+          npm run start --prefix frontend > /tmp/web.log 2>&1 &
           for i in $(seq 1 30); do
             if curl -sf http://localhost:3000 >/dev/null && curl -sf http://localhost:4000/api/health >/dev/null; then break; fi
             sleep 2
           done
-          npm run test:e2e
+          npm run test:e2e --prefix frontend
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: browser-verification
           path: |
-            artifacts/
-            test-results/
+            frontend/artifacts/
+            frontend/test-results/

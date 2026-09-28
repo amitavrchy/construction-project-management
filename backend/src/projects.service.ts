@@ -91,7 +91,14 @@ export class ProjectsService {
         const d = r.data as any;
         return (
           (r.kind === "contractor" && r.id === actor.contractorId) ||
-          (["workorder", "bill"].includes(r.kind) &&
+          ([
+            "workorder",
+            "bill",
+            "contractpackage",
+            "measurementbill",
+            "payment",
+            "retentionpayment",
+          ].includes(r.kind) &&
             d.contractorId === actor.contractorId)
         );
       });

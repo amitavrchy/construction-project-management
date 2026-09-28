@@ -5,6 +5,22 @@ import { contracts } from "./modules-contracts";
 export const modules = { ...planning, ...materials, ...labor, ...contracts };
 export const navigation = [
   {
+    label: "PROJECT CONTROL",
+    items: [
+      ["control", "Control room", "Radar"],
+      ["planning", "Planning & WBS", "CalendarRange"],
+      ["approvals", "Approval inbox", "CheckCheck"],
+      ["procurement", "Procurement", "ShoppingCart"],
+      ["commercial", "Commercial control", "Landmark"],
+      ["budget-versions", "Budget versions", "Layers3"],
+      ["risks", "Risk register", "ShieldAlert"],
+      ["rfis", "Design & RFIs", "MessagesSquare"],
+      ["site-diary", "Site intelligence", "NotebookPen"],
+      ["activity", "Activity & alerts", "Bell"],
+      ["automation", "Approval policies", "Workflow"],
+    ],
+  },
+  {
     label: "WORKSPACE",
     items: [
       ["dashboard", "Overview", "LayoutDashboard"],

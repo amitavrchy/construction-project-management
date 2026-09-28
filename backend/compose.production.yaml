@@ -1,8 +1,8 @@
 services:
   api:
     build:
-      context: .
-      target: api
+      context: ..
+      dockerfile: backend/Dockerfile
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://sitecraft:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/sitecraft
@@ -19,8 +19,8 @@ services:
     restart: unless-stopped
   web:
     build:
-      context: .
-      target: web
+      context: ..
+      dockerfile: frontend/Dockerfile
       args:
         API_URL: http://api:4000
     ports: ["127.0.0.1:3000:3000"]

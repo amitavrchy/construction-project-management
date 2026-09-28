@@ -23,6 +23,8 @@ import { TeamController } from "./team.controller";
 import { Errors } from "./errors";
 import { startJobs } from "./jobs";
 import { Cache } from "./cache";
+import { AdvancedService } from "./advanced/service";
+import { AdvancedController } from "./advanced/controller";
 @Controller("health")
 class HealthController {
   constructor(@Inject(Db) private readonly db: Db) {}
@@ -41,8 +43,9 @@ class HealthController {
     AuthController,
     ProjectsController,
     TeamController,
+    AdvancedController,
   ],
-  providers: [Db, Cache, ProjectsService],
+  providers: [Db, Cache, ProjectsService, AdvancedService],
 })
 class AppModule {}
 async function main() {

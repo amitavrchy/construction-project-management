@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Provider } from "../components/provider";
 import "./globals.css";
+import "./advanced.css";
 export const metadata: Metadata = {
   title: "Sitecraft — Construction, connected.",
   description:
