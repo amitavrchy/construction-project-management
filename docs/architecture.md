@@ -26,26 +26,26 @@ PM and Accounts approvals require separate roles/people. Originators cannot appr
 
 All routes start with `/api`. JSON writes use same-origin session cookies. CSV endpoints return attachment downloads. Validation errors return `{ message, statusCode }`.
 
-| Route | Purpose |
-| --- | --- |
-| `GET /health` | Process readiness |
-| `POST /auth/login`, `/auth/logout`, `/auth/password` | Session/password actions |
-| `GET /auth/me` | Current user without password hash |
-| `GET/POST /projects` | Assigned projects / admin creation |
-| `GET /projects/:id` | Scoped project snapshot |
-| `PATCH /projects/:id/status` | Guarded lifecycle transition |
-| `POST /projects/:id/sites` | Add site |
-| `POST /projects/:id/records/:kind` | Create validated domain record |
-| `POST /projects/:id/records/:recordId/transition` | Submit/approve/reject/pay/receive |
-| `POST /projects/:id/attendance/bulk` | Atomic 1–200 muster rows |
-| `POST /projects/:id/budgets/:recordId/revise` | Copy approved budget into draft |
-| `PATCH /projects/:id/budgets/:recordId` | Edit draft and calculate diff |
-| `POST /projects/:id/bills/:recordId/release-retention` | Eligible retention settlement |
-| `GET /projects/:id/boq-tree` | Cost-code BOQ tree, 60-second cache |
-| `GET /projects/:id/stock-snapshot` | 10-second stock cache |
-| `GET /projects/:id/reports/:report` | CSV: budget-vs-actual, material-register, attendance, ledger |
-| `GET/POST /team` | Company directory / provisioning |
-| `POST /team/:userId/memberships` | Assign existing member to project |
+| Route                                                  | Purpose                                                      |
+| ------------------------------------------------------ | ------------------------------------------------------------ |
+| `GET /health`                                          | Process readiness                                            |
+| `POST /auth/login`, `/auth/logout`, `/auth/password`   | Session/password actions                                     |
+| `GET /auth/me`                                         | Current user without password hash                           |
+| `GET/POST /projects`                                   | Assigned projects / admin creation                           |
+| `GET /projects/:id`                                    | Scoped project snapshot                                      |
+| `PATCH /projects/:id/status`                           | Guarded lifecycle transition                                 |
+| `POST /projects/:id/sites`                             | Add site                                                     |
+| `POST /projects/:id/records/:kind`                     | Create validated domain record                               |
+| `POST /projects/:id/records/:recordId/transition`      | Submit/approve/reject/pay/receive                            |
+| `POST /projects/:id/attendance/bulk`                   | Atomic 1–200 muster rows                                     |
+| `POST /projects/:id/budgets/:recordId/revise`          | Copy approved budget into draft                              |
+| `PATCH /projects/:id/budgets/:recordId`                | Edit draft and calculate diff                                |
+| `POST /projects/:id/bills/:recordId/release-retention` | Eligible retention settlement                                |
+| `GET /projects/:id/boq-tree`                           | Cost-code BOQ tree, 60-second cache                          |
+| `GET /projects/:id/stock-snapshot`                     | 10-second stock cache                                        |
+| `GET /projects/:id/reports/:report`                    | CSV: budget-vs-actual, material-register, attendance, ledger |
+| `GET/POST /team`                                       | Company directory / provisioning                             |
+| `POST /team/:userId/memberships`                       | Assign existing member to project                            |
 
 There are no ledger edit/delete endpoints. Corrections require explicit reversals. Payment states record external settlement; the application does not send funds to banks.
 

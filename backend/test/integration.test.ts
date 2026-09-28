@@ -1,42 +1,487 @@
-import 'reflect-metadata';
-import { config } from 'dotenv';
-config({quiet:true});
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
-import { Db } from '../src/db';
-import { ProjectsService } from '../src/projects.service';
-import { Actor } from '../src/domain/access';
-test('transactional construction workflows against PostgreSQL', {skip:!process.env.DATABASE_URL}, async t => {
-  const db=new Db();const service=new ProjectsService(db);const companyId=randomUUID();const actor:Actor={id:randomUUID(),companyId,role:'COMPANY_ADMIN'};const pm:Actor={id:randomUUID(),companyId,role:'PROJECT_MANAGER'};const accountant:Actor={id:randomUUID(),companyId,role:'ACCOUNTANT'};let projectId='';
-  try {
-    await db.company.create({data:{id:companyId,name:'Isolated test company'}});
-    for(const a of [actor,pm,accountant])await db.user.create({data:{id:a.id,companyId,name:'Test',email:`${a.id}@test.invalid`,passwordHash:'unused',role:a.role}});
-    const project=await service.createProject(actor,{name:'Test build',code:'TEST',address:'Dhaka',startsOn:'2026-01-01',endsOn:'2027-01-01'});projectId=project.id;const siteId=project.sites[0].id;
-    for(const a of [pm,accountant])await db.member.create({data:{projectId,userId:a.id,role:a.role}});
-    const create=(kind:string,data:any,a=actor)=>service.create(a,projectId,kind,data);
-    const material=await create('material',{sku:'TEST',name:'Cement',unit:'bag',minimum:2});const supplier=await create('supplier',{name:'Supplier',phone:'01700000000',address:'Dhaka'});
-    await t.test('duplicate supplier invoice is rejected and GRN updates weighted average',async()=>{
-      const receipt={siteId,materialId:material.id,supplierId:supplier.id,invoiceNo:'INV-1',quantity:10,costMinor:10000};await create('receipt',receipt);await assert.rejects(()=>create('receipt',receipt));await create('receipt',{...receipt,invoiceNo:'INV-2',quantity:10,costMinor:20000});const stock=await db.stock.findUniqueOrThrow({where:{siteId_materialId:{siteId,materialId:material.id}}});assert.equal(Number(stock.quantity),20);assert.equal(stock.averageCostMinor,15000);
-    });
-    let reqId='';
-    await t.test('concurrent issues never create negative stock and roll back ledger together',async()=>{
-      const req=await create('requisition',{siteId,materialId:material.id,quantity:30,neededOn:'2026-11-03',costCode:'C',note:''});reqId=req.id;await service.transition(actor,projectId,req.id,'SUBMITTED');await service.transition(pm,projectId,req.id,'APPROVED');const results=await Promise.allSettled([create('issue',{requisitionId:req.id,quantity:15}),create('issue',{requisitionId:req.id,quantity:15})]);assert.equal(results.filter(r=>r.status==='fulfilled').length,1);const stock=await db.stock.findUniqueOrThrow({where:{siteId_materialId:{siteId,materialId:material.id}}});assert.equal(Number(stock.quantity),5);const ledger=await db.ledger.findMany({where:{projectId}});assert.equal(ledger.length,1);assert.equal(ledger[0].amountMinor,225000);
-    });
-    await t.test('returns reverse original cost and block over returns',async()=>{const issue=await db.record.findFirstOrThrow({where:{projectId,kind:'issue'}});await create('return',{issueId:issue.id,quantity:5,note:''});const ledger=await db.ledger.aggregate({where:{projectId},_sum:{amountMinor:true}});assert.equal(ledger._sum.amountMinor,150000);await assert.rejects(()=>create('return',{issueId:issue.id,quantity:11,note:''}));});
-    let boqId='';
-    await t.test('contractor bills reserve remaining quantities and enforce approval segregation',async()=>{const boq=await create('boq',{code:'B1',description:'Concrete',unit:'m³',quantity:100,rateMinor:10000,costCode:'C'});boqId=boq.id;const contractor=await create('contractor',{name:'Contractor',phone:'01700000000',trade:'Civil'});const order=await create('workorder',{title:'Concrete',contractorId:contractor.id,boqId,quantity:10,rateMinor:100000,retentionBps:500,taxBps:300,costCode:'C',defectsUntil:'2027-01-01'});const bill=await create('bill',{workorderId:order.id,billNo:'RA-1',quantity:8,advanceMinor:0,penaltyMinor:0});assert.equal((bill.data as any).net,736000);await assert.rejects(()=>create('bill',{workorderId:order.id,billNo:'RA-2',quantity:3}));await service.transition(actor,projectId,bill.id,'SUBMITTED');await assert.rejects(()=>service.transition(actor,projectId,bill.id,'PM_APPROVED'));await service.transition(pm,projectId,bill.id,'PM_APPROVED');await assert.rejects(()=>service.transition(pm,projectId,bill.id,'ACCOUNTS_APPROVED'));await service.transition(accountant,projectId,bill.id,'ACCOUNTS_APPROVED');await service.transition(accountant,projectId,bill.id,'PAID');await assert.rejects(()=>service.transition(accountant,projectId,bill.id,'PAID'));});
-    await t.test('attendance uniqueness and payroll overlap protections',async()=>{const worker=await create('worker',{name:'Worker',trade:'Mason',dailyRateMinor:80000,gang:'A',phone:''});const attendance={workerId:worker.id,siteId,date:'2026-11-01',status:'PRESENT',otHours:2,shift:'NIGHT'};await create('attendance',attendance);await assert.rejects(()=>create('attendance',attendance));const run=await create('wage',{name:'November',siteId,periodStart:'2026-11-01',periodEnd:'2026-11-02',costCode:'L'});assert.equal((run.data as any).amountMinor,110000);await assert.rejects(()=>create('wage',{name:'Duplicate',siteId,periodStart:'2026-11-01',periodEnd:'2026-11-03',costCode:'L'}));await service.transition(accountant,projectId,run.id,'APPROVED');});
-    await t.test('approved budgets cannot be reopened and revisions preserve original',async()=>{const budget=await create('budget',{name:'Baseline',amountMinor:1000000,costCode:'C',note:''});await service.transition(actor,projectId,budget.id,'SUBMITTED');await service.transition(pm,projectId,budget.id,'APPROVED');await assert.rejects(()=>service.transition(actor,projectId,budget.id,'DRAFT'));const revision=await service.reviseBudget(actor,projectId,budget.id);assert.equal(revision.status,'DRAFT');assert.equal((revision.data as any).previousId,budget.id);assert.equal((await db.record.findUniqueOrThrow({where:{id:budget.id}})).status,'APPROVED');});
-    await t.test('progress requires evidence and cannot exceed approved quantities',async()=>{await assert.rejects(()=>create('progress',{boqId,quantity:50,note:'',photo:''}));await assert.rejects(()=>create('progress',{boqId,quantity:101,note:'',photo:''}));const update=await create('progress',{boqId,quantity:10,note:'',photo:''});assert.equal((update.data as any).percent,10);});
-    await t.test('budget revision edits preserve locked original and record a diff',async()=>{const source=await db.record.findFirstOrThrow({where:{projectId,kind:'budget',status:'APPROVED'}});const revision=await service.reviseBudget(actor,projectId,source.id);await service.editBudget(actor,projectId,revision.id,{name:'Revision 2',costCode:'C',amountMinor:1500000,note:'Additional scope'});const edited=await db.record.findUniqueOrThrow({where:{id:revision.id}});assert.equal((edited.data as any).diffMinor,500000);await assert.rejects(()=>service.editBudget(actor,projectId,source.id,{name:'Forbidden',costCode:'C',amountMinor:1,note:''}));});
-    await t.test('bulk attendance is atomic when duplicate rows conflict',async()=>{const worker=await db.record.findFirstOrThrow({where:{projectId,kind:'worker'}});const row={workerId:worker.id,siteId,date:'2026-11-10',status:'PRESENT',otHours:0,shift:'DAY'};await assert.rejects(()=>service.bulkAttendance(actor,projectId,[row,row]));assert.equal(await db.record.count({where:{projectId,kind:'attendance',key:`${siteId}:${worker.id}:2026-11-10`}}),0);await service.bulkAttendance(actor,projectId,[row]);});
-    await t.test('stock transfer stays in transit until destination receives',async()=>{const destination=await db.site.create({data:{projectId,name:'Annex',address:'Dhaka'}});const transfer=await create('transfer',{siteId,destinationSiteId:destination.id,materialId:material.id,quantity:2,note:''});assert.equal(transfer.status,'IN_TRANSIT');assert.equal(await db.stock.count({where:{siteId:destination.id}}),0);await service.transition(actor,projectId,transfer.id,'RECEIVED');const stock=await db.stock.findUniqueOrThrow({where:{siteId_materialId:{siteId:destination.id,materialId:material.id}}});assert.equal(Number(stock.quantity),2);await assert.rejects(()=>service.transition(actor,projectId,transfer.id,'RECEIVED'));});
-    await t.test('retention cannot release early or twice',async()=>{const bill=await db.record.findFirstOrThrow({where:{projectId,kind:'bill',status:'PAID'}});await assert.rejects(()=>service.releaseRetention(accountant,projectId,bill.id));await db.record.update({where:{id:bill.id},data:{data:{...bill.data as any,defectsUntil:'2020-01-01'}}});await service.releaseRetention(accountant,projectId,bill.id);await assert.rejects(()=>service.releaseRetention(accountant,projectId,bill.id));});
-    await t.test('contractor sees only assigned orders and bills',async()=>{const contractor=await db.record.findFirstOrThrow({where:{projectId,kind:'contractor'}});const portal:Actor={id:randomUUID(),companyId,role:'CONTRACTOR',contractorId:contractor.id};await db.user.create({data:{...portal,name:'Portal',email:`${portal.id}@test.invalid`,passwordHash:'unused'}});await db.member.create({data:{projectId,userId:portal.id,role:portal.role}});const snap=await service.snapshot(portal,projectId);assert.equal(snap.ledger.length,0);assert.equal(snap.stock.length,0);assert.ok(snap.records.every(r=>['contractor','workorder','bill'].includes(r.kind)));await assert.rejects(()=>service.create(portal,projectId,'receipt',{siteId,materialId:material.id,supplierId:supplier.id,invoiceNo:'BAD',quantity:1,costMinor:1}));});
-    await t.test('project A member cannot access or mutate project B',async()=>{const other=await service.createProject(actor,{name:'Other',code:'OTHER',address:'Dhaka',startsOn:'2026-01-01',endsOn:'2027-01-01'});await assert.rejects(()=>service.snapshot(pm,other.id));await assert.rejects(()=>service.create(pm,other.id,'boq',{code:'B',description:'Bad',unit:'m',quantity:1,rateMinor:1,costCode:'C'}));});
-  } finally {
-    const projects=await db.project.findMany({where:{companyId},select:{id:true}});const ids=projects.map(p=>p.id);
-    await db.audit.deleteMany({where:{projectId:{in:ids}}});await db.ledger.deleteMany({where:{projectId:{in:ids}}});await db.stock.deleteMany({where:{site:{projectId:{in:ids}}}});await db.record.deleteMany({where:{projectId:{in:ids}}});await db.member.deleteMany({where:{projectId:{in:ids}}});await db.site.deleteMany({where:{projectId:{in:ids}}});await db.project.deleteMany({where:{companyId}});await db.user.deleteMany({where:{companyId}});await db.company.deleteMany({where:{id:companyId}});await db.$disconnect();
-  }
-});
+import "reflect-metadata";
+import { config } from "dotenv";
+config({ quiet: true });
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { Db } from "../src/db";
+import { ProjectsService } from "../src/projects.service";
+import { Actor } from "../src/domain/access";
+test(
+  "transactional construction workflows against PostgreSQL",
+  { skip: !process.env.DATABASE_URL },
+  async (t) => {
+    const db = new Db();
+    const service = new ProjectsService(db);
+    const companyId = randomUUID();
+    const actor: Actor = { id: randomUUID(), companyId, role: "COMPANY_ADMIN" };
+    const pm: Actor = { id: randomUUID(), companyId, role: "PROJECT_MANAGER" };
+    const accountant: Actor = {
+      id: randomUUID(),
+      companyId,
+      role: "ACCOUNTANT",
+    };
+    let projectId = "";
+    try {
+      await db.company.create({
+        data: { id: companyId, name: "Isolated test company" },
+      });
+      for (const a of [actor, pm, accountant])
+        await db.user.create({
+          data: {
+            id: a.id,
+            companyId,
+            name: "Test",
+            email: `${a.id}@test.invalid`,
+            passwordHash: "unused",
+            role: a.role,
+          },
+        });
+      const project = await service.createProject(actor, {
+        name: "Test build",
+        code: "TEST",
+        address: "Dhaka",
+        startsOn: "2026-01-01",
+        endsOn: "2027-01-01",
+      });
+      projectId = project.id;
+      const siteId = project.sites[0].id;
+      for (const a of [pm, accountant])
+        await db.member.create({
+          data: { projectId, userId: a.id, role: a.role },
+        });
+      const create = (kind: string, data: any, a = actor) =>
+        service.create(a, projectId, kind, data);
+      const material = await create("material", {
+        sku: "TEST",
+        name: "Cement",
+        unit: "bag",
+        minimum: 2,
+      });
+      const supplier = await create("supplier", {
+        name: "Supplier",
+        phone: "01700000000",
+        address: "Dhaka",
+      });
+      await t.test(
+        "duplicate supplier invoice is rejected and GRN updates weighted average",
+        async () => {
+          const receipt = {
+            siteId,
+            materialId: material.id,
+            supplierId: supplier.id,
+            invoiceNo: "INV-1",
+            quantity: 10,
+            costMinor: 10000,
+          };
+          await create("receipt", receipt);
+          await assert.rejects(() => create("receipt", receipt));
+          await create("receipt", {
+            ...receipt,
+            invoiceNo: "INV-2",
+            quantity: 10,
+            costMinor: 20000,
+          });
+          const stock = await db.stock.findUniqueOrThrow({
+            where: { siteId_materialId: { siteId, materialId: material.id } },
+          });
+          assert.equal(Number(stock.quantity), 20);
+          assert.equal(stock.averageCostMinor, 15000);
+        },
+      );
+      let reqId = "";
+      await t.test(
+        "concurrent issues never create negative stock and roll back ledger together",
+        async () => {
+          const req = await create("requisition", {
+            siteId,
+            materialId: material.id,
+            quantity: 30,
+            neededOn: "2026-11-03",
+            costCode: "C",
+            note: "",
+          });
+          reqId = req.id;
+          await service.transition(actor, projectId, req.id, "SUBMITTED");
+          await service.transition(pm, projectId, req.id, "APPROVED");
+          const results = await Promise.allSettled([
+            create("issue", { requisitionId: req.id, quantity: 15 }),
+            create("issue", { requisitionId: req.id, quantity: 15 }),
+          ]);
+          assert.equal(
+            results.filter((r) => r.status === "fulfilled").length,
+            1,
+          );
+          const stock = await db.stock.findUniqueOrThrow({
+            where: { siteId_materialId: { siteId, materialId: material.id } },
+          });
+          assert.equal(Number(stock.quantity), 5);
+          const ledger = await db.ledger.findMany({ where: { projectId } });
+          assert.equal(ledger.length, 1);
+          assert.equal(ledger[0].amountMinor, 225000);
+        },
+      );
+      await t.test(
+        "returns reverse original cost and block over returns",
+        async () => {
+          const issue = await db.record.findFirstOrThrow({
+            where: { projectId, kind: "issue" },
+          });
+          await create("return", { issueId: issue.id, quantity: 5, note: "" });
+          const ledger = await db.ledger.aggregate({
+            where: { projectId },
+            _sum: { amountMinor: true },
+          });
+          assert.equal(ledger._sum.amountMinor, 150000);
+          await assert.rejects(() =>
+            create("return", { issueId: issue.id, quantity: 11, note: "" }),
+          );
+        },
+      );
+      let boqId = "";
+      await t.test(
+        "contractor bills reserve remaining quantities and enforce approval segregation",
+        async () => {
+          const boq = await create("boq", {
+            code: "B1",
+            description: "Concrete",
+            unit: "m³",
+            quantity: 100,
+            rateMinor: 10000,
+            costCode: "C",
+          });
+          boqId = boq.id;
+          const contractor = await create("contractor", {
+            name: "Contractor",
+            phone: "01700000000",
+            trade: "Civil",
+          });
+          const order = await create("workorder", {
+            title: "Concrete",
+            contractorId: contractor.id,
+            boqId,
+            quantity: 10,
+            rateMinor: 100000,
+            retentionBps: 500,
+            taxBps: 300,
+            costCode: "C",
+            defectsUntil: "2027-01-01",
+          });
+          const bill = await create("bill", {
+            workorderId: order.id,
+            billNo: "RA-1",
+            quantity: 8,
+            advanceMinor: 0,
+            penaltyMinor: 0,
+          });
+          assert.equal((bill.data as any).net, 736000);
+          await assert.rejects(() =>
+            create("bill", {
+              workorderId: order.id,
+              billNo: "RA-2",
+              quantity: 3,
+            }),
+          );
+          await service.transition(actor, projectId, bill.id, "SUBMITTED");
+          await assert.rejects(() =>
+            service.transition(actor, projectId, bill.id, "PM_APPROVED"),
+          );
+          await service.transition(pm, projectId, bill.id, "PM_APPROVED");
+          await assert.rejects(() =>
+            service.transition(pm, projectId, bill.id, "ACCOUNTS_APPROVED"),
+          );
+          await service.transition(
+            accountant,
+            projectId,
+            bill.id,
+            "ACCOUNTS_APPROVED",
+          );
+          await service.transition(accountant, projectId, bill.id, "PAID");
+          await assert.rejects(() =>
+            service.transition(accountant, projectId, bill.id, "PAID"),
+          );
+        },
+      );
+      await t.test(
+        "attendance uniqueness and payroll overlap protections",
+        async () => {
+          const worker = await create("worker", {
+            name: "Worker",
+            trade: "Mason",
+            dailyRateMinor: 80000,
+            gang: "A",
+            phone: "",
+          });
+          const attendance = {
+            workerId: worker.id,
+            siteId,
+            date: "2026-11-01",
+            status: "PRESENT",
+            otHours: 2,
+            shift: "NIGHT",
+          };
+          await create("attendance", attendance);
+          await assert.rejects(() => create("attendance", attendance));
+          const run = await create("wage", {
+            name: "November",
+            siteId,
+            periodStart: "2026-11-01",
+            periodEnd: "2026-11-02",
+            costCode: "L",
+          });
+          assert.equal((run.data as any).amountMinor, 110000);
+          await assert.rejects(() =>
+            create("wage", {
+              name: "Duplicate",
+              siteId,
+              periodStart: "2026-11-01",
+              periodEnd: "2026-11-03",
+              costCode: "L",
+            }),
+          );
+          await service.transition(accountant, projectId, run.id, "APPROVED");
+        },
+      );
+      await t.test(
+        "approved budgets cannot be reopened and revisions preserve original",
+        async () => {
+          const budget = await create("budget", {
+            name: "Baseline",
+            amountMinor: 1000000,
+            costCode: "C",
+            note: "",
+          });
+          await service.transition(actor, projectId, budget.id, "SUBMITTED");
+          await service.transition(pm, projectId, budget.id, "APPROVED");
+          await assert.rejects(() =>
+            service.transition(actor, projectId, budget.id, "DRAFT"),
+          );
+          const revision = await service.reviseBudget(
+            actor,
+            projectId,
+            budget.id,
+          );
+          assert.equal(revision.status, "DRAFT");
+          assert.equal((revision.data as any).previousId, budget.id);
+          assert.equal(
+            (await db.record.findUniqueOrThrow({ where: { id: budget.id } }))
+              .status,
+            "APPROVED",
+          );
+        },
+      );
+      await t.test(
+        "progress requires evidence and cannot exceed approved quantities",
+        async () => {
+          await assert.rejects(() =>
+            create("progress", { boqId, quantity: 50, note: "", photo: "" }),
+          );
+          await assert.rejects(() =>
+            create("progress", { boqId, quantity: 101, note: "", photo: "" }),
+          );
+          const update = await create("progress", {
+            boqId,
+            quantity: 10,
+            note: "",
+            photo: "",
+          });
+          assert.equal((update.data as any).percent, 10);
+        },
+      );
+      await t.test(
+        "budget revision edits preserve locked original and record a diff",
+        async () => {
+          const source = await db.record.findFirstOrThrow({
+            where: { projectId, kind: "budget", status: "APPROVED" },
+          });
+          const revision = await service.reviseBudget(
+            actor,
+            projectId,
+            source.id,
+          );
+          await service.editBudget(actor, projectId, revision.id, {
+            name: "Revision 2",
+            costCode: "C",
+            amountMinor: 1500000,
+            note: "Additional scope",
+          });
+          const edited = await db.record.findUniqueOrThrow({
+            where: { id: revision.id },
+          });
+          assert.equal((edited.data as any).diffMinor, 500000);
+          await assert.rejects(() =>
+            service.editBudget(actor, projectId, source.id, {
+              name: "Forbidden",
+              costCode: "C",
+              amountMinor: 1,
+              note: "",
+            }),
+          );
+        },
+      );
+      await t.test(
+        "bulk attendance is atomic when duplicate rows conflict",
+        async () => {
+          const worker = await db.record.findFirstOrThrow({
+            where: { projectId, kind: "worker" },
+          });
+          const row = {
+            workerId: worker.id,
+            siteId,
+            date: "2026-11-10",
+            status: "PRESENT",
+            otHours: 0,
+            shift: "DAY",
+          };
+          await assert.rejects(() =>
+            service.bulkAttendance(actor, projectId, [row, row]),
+          );
+          assert.equal(
+            await db.record.count({
+              where: {
+                projectId,
+                kind: "attendance",
+                key: `${siteId}:${worker.id}:2026-11-10`,
+              },
+            }),
+            0,
+          );
+          await service.bulkAttendance(actor, projectId, [row]);
+        },
+      );
+      await t.test(
+        "stock transfer stays in transit until destination receives",
+        async () => {
+          const destination = await db.site.create({
+            data: { projectId, name: "Annex", address: "Dhaka" },
+          });
+          const transfer = await create("transfer", {
+            siteId,
+            destinationSiteId: destination.id,
+            materialId: material.id,
+            quantity: 2,
+            note: "",
+          });
+          assert.equal(transfer.status, "IN_TRANSIT");
+          assert.equal(
+            await db.stock.count({ where: { siteId: destination.id } }),
+            0,
+          );
+          await service.transition(actor, projectId, transfer.id, "RECEIVED");
+          const stock = await db.stock.findUniqueOrThrow({
+            where: {
+              siteId_materialId: {
+                siteId: destination.id,
+                materialId: material.id,
+              },
+            },
+          });
+          assert.equal(Number(stock.quantity), 2);
+          await assert.rejects(() =>
+            service.transition(actor, projectId, transfer.id, "RECEIVED"),
+          );
+        },
+      );
+      await t.test("retention cannot release early or twice", async () => {
+        const bill = await db.record.findFirstOrThrow({
+          where: { projectId, kind: "bill", status: "PAID" },
+        });
+        await assert.rejects(() =>
+          service.releaseRetention(accountant, projectId, bill.id),
+        );
+        await db.record.update({
+          where: { id: bill.id },
+          data: { data: { ...(bill.data as any), defectsUntil: "2020-01-01" } },
+        });
+        await service.releaseRetention(accountant, projectId, bill.id);
+        await assert.rejects(() =>
+          service.releaseRetention(accountant, projectId, bill.id),
+        );
+      });
+      await t.test(
+        "contractor sees only assigned orders and bills",
+        async () => {
+          const contractor = await db.record.findFirstOrThrow({
+            where: { projectId, kind: "contractor" },
+          });
+          const portal: Actor = {
+            id: randomUUID(),
+            companyId,
+            role: "CONTRACTOR",
+            contractorId: contractor.id,
+          };
+          await db.user.create({
+            data: {
+              ...portal,
+              name: "Portal",
+              email: `${portal.id}@test.invalid`,
+              passwordHash: "unused",
+            },
+          });
+          await db.member.create({
+            data: { projectId, userId: portal.id, role: portal.role },
+          });
+          const snap = await service.snapshot(portal, projectId);
+          assert.equal(snap.ledger.length, 0);
+          assert.equal(snap.stock.length, 0);
+          assert.ok(
+            snap.records.every((r) =>
+              ["contractor", "workorder", "bill"].includes(r.kind),
+            ),
+          );
+          await assert.rejects(() =>
+            service.create(portal, projectId, "receipt", {
+              siteId,
+              materialId: material.id,
+              supplierId: supplier.id,
+              invoiceNo: "BAD",
+              quantity: 1,
+              costMinor: 1,
+            }),
+          );
+        },
+      );
+      await t.test(
+        "project A member cannot access or mutate project B",
+        async () => {
+          const other = await service.createProject(actor, {
+            name: "Other",
+            code: "OTHER",
+            address: "Dhaka",
+            startsOn: "2026-01-01",
+            endsOn: "2027-01-01",
+          });
+          await assert.rejects(() => service.snapshot(pm, other.id));
+          await assert.rejects(() =>
+            service.create(pm, other.id, "boq", {
+              code: "B",
+              description: "Bad",
+              unit: "m",
+              quantity: 1,
+              rateMinor: 1,
+              costCode: "C",
+            }),
+          );
+        },
+      );
+    } finally {
+      const projects = await db.project.findMany({
+        where: { companyId },
+        select: { id: true },
+      });
+      const ids = projects.map((p) => p.id);
+      await db.audit.deleteMany({ where: { projectId: { in: ids } } });
+      await db.ledger.deleteMany({ where: { projectId: { in: ids } } });
+      await db.stock.deleteMany({
+        where: { site: { projectId: { in: ids } } },
+      });
+      await db.record.deleteMany({ where: { projectId: { in: ids } } });
+      await db.member.deleteMany({ where: { projectId: { in: ids } } });
+      await db.site.deleteMany({ where: { projectId: { in: ids } } });
+      await db.project.deleteMany({ where: { companyId } });
+      await db.user.deleteMany({ where: { companyId } });
+      await db.company.deleteMany({ where: { id: companyId } });
+      await db.$disconnect();
+    }
+  },
+);

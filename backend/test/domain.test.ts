@@ -1,13 +1,72 @@
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import { billTotal, movingAverage, wage } from '../src/domain/money';
-import { assertTransition } from '../src/domain/states';
-import { parseRecord } from '../src/domain/schemas';
-import { csv, budgetReport } from '../src/reports';
-test('contractor retention and tax round to paisa', () => {assert.deepEqual(billTotal(3,12345,500,300,100,50),{gross:37035,retention:1852,tax:1111,advance:100,penalty:50,net:33922});assert.throws(() => billTotal(1,100,5000,5000,1));});
-test('daily wages include half days and hourly overtime', () => {assert.equal(wage(2.5,80000,4),260000);assert.equal(wage(0,80000,0),0);});
-test('moving average weights quantities without floating paisa', () => {assert.equal(movingAverage(10,10000,30,20000),17500);assert.throws(() => movingAverage(1,100,0,100));});
-test('state machines block skipping approvals and double payment', () => {assertTransition('bill','SUBMITTED','PM_APPROVED');assert.throws(() => assertTransition('bill','SUBMITTED','PAID'));assert.throws(() => assertTransition('wage','PAID','PAID'));assert.throws(() => assertTransition('budget','APPROVED','DRAFT'));});
-test('validation rejects negative quantities, unknown fields and invalid dates', () => {assert.throws(() => parseRecord('issue',{requisitionId:'a',quantity:-1}));assert.throws(() => parseRecord('issue',{requisitionId:'a',quantity:1,override:true}));assert.throws(() => parseRecord('wage',{name:'x',siteId:'s',periodStart:'2026-02-30',periodEnd:'2026-03-01',costCode:'L'}));});
-test('CSV escapes quotes and neutralizes spreadsheet formula input', () => {const result=csv([{name:'=HYPERLINK("bad")',value:'a,b'}]);assert.ok(result.includes("'="));assert.ok(result.includes('"a,b"'));assert.ok(result.includes('""bad""'));});
-test('budget variance uses ledger reversals rather than source recomputation', () => {const result=budgetReport([{kind:'budget',status:'APPROVED',data:{costCode:'C',amountMinor:10000}}],[{costCode:'C',amountMinor:15000},{costCode:'C',amountMinor:-2000}]);assert.equal(result[0].actual,13000);assert.equal(result[0].variance,3000);assert.equal(result[0].alert,true);});
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { billTotal, movingAverage, wage } from "../src/domain/money";
+import { assertTransition } from "../src/domain/states";
+import { parseRecord } from "../src/domain/schemas";
+import { csv, budgetReport } from "../src/reports";
+test("contractor retention and tax round to paisa", () => {
+  assert.deepEqual(billTotal(3, 12345, 500, 300, 100, 50), {
+    gross: 37035,
+    retention: 1852,
+    tax: 1111,
+    advance: 100,
+    penalty: 50,
+    net: 33922,
+  });
+  assert.throws(() => billTotal(1, 100, 5000, 5000, 1));
+});
+test("daily wages include half days and hourly overtime", () => {
+  assert.equal(wage(2.5, 80000, 4), 260000);
+  assert.equal(wage(0, 80000, 0), 0);
+});
+test("moving average weights quantities without floating paisa", () => {
+  assert.equal(movingAverage(10, 10000, 30, 20000), 17500);
+  assert.throws(() => movingAverage(1, 100, 0, 100));
+});
+test("state machines block skipping approvals and double payment", () => {
+  assertTransition("bill", "SUBMITTED", "PM_APPROVED");
+  assert.throws(() => assertTransition("bill", "SUBMITTED", "PAID"));
+  assert.throws(() => assertTransition("wage", "PAID", "PAID"));
+  assert.throws(() => assertTransition("budget", "APPROVED", "DRAFT"));
+});
+test("validation rejects negative quantities, unknown fields and invalid dates", () => {
+  assert.throws(() =>
+    parseRecord("issue", { requisitionId: "a", quantity: -1 }),
+  );
+  assert.throws(() =>
+    parseRecord("issue", { requisitionId: "a", quantity: 1, override: true }),
+  );
+  assert.throws(() =>
+    parseRecord("wage", {
+      name: "x",
+      siteId: "s",
+      periodStart: "2026-02-30",
+      periodEnd: "2026-03-01",
+      costCode: "L",
+    }),
+  );
+});
+test("CSV escapes quotes and neutralizes spreadsheet formula input", () => {
+  const result = csv([{ name: '=HYPERLINK("bad")', value: "a,b" }]);
+  assert.ok(result.includes("'="));
+  assert.ok(result.includes('"a,b"'));
+  assert.ok(result.includes('""bad""'));
+});
+test("budget variance uses ledger reversals rather than source recomputation", () => {
+  const result = budgetReport(
+    [
+      {
+        kind: "budget",
+        status: "APPROVED",
+        data: { costCode: "C", amountMinor: 10000 },
+      },
+    ],
+    [
+      { costCode: "C", amountMinor: 15000 },
+      { costCode: "C", amountMinor: -2000 },
+    ],
+  );
+  assert.equal(result[0].actual, 13000);
+  assert.equal(result[0].variance, 3000);
+  assert.equal(result[0].alert, true);
+});

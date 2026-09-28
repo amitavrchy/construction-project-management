@@ -1,10 +1,114 @@
-import { Module } from './types';
+import { Module } from "./types";
 export const materials: Record<string, Module> = {
-  material: { title:'Material catalog',singular:'material',subtitle:'Every material, with one dependable source of truth.',columns:['sku','name','unit','minimum'],fields:[{key:'sku',label:'SKU'},{key:'name',label:'Material name'},{key:'unit',label:'Unit',options:['bag','kg','ton','m³','m²','piece','litre']},{key:'minimum',label:'Low stock threshold',type:'number',default:0}]},
-  supplier: {title:'Suppliers',singular:'supplier',subtitle:'The partners keeping your sites moving.',columns:['name','phone','address'],fields:[{key:'name',label:'Supplier name'},{key:'phone',label:'Phone number'},{key:'address',label:'Address',optional:true}]},
-  receipt: {title:'Goods received',singular:'goods receipt',subtitle:'Receive materials and update stock at moving average cost.',columns:['invoiceNo','siteId','materialId','quantity','costMinor'],fields:[{key:'siteId',label:'Receiving site',ref:'site'},{key:'supplierId',label:'Supplier',ref:'supplier'},{key:'invoiceNo',label:'Supplier invoice number'},{key:'materialId',label:'Material',ref:'material'},{key:'quantity',label:'Quantity received',type:'number'},{key:'costMinor',label:'Unit cost (BDT)',type:'money'}]},
-  requisition: {title:'Material requisitions',singular:'requisition',subtitle:'From site request to approved material issue.',columns:['materialId','siteId','quantity','issued','neededOn','costCode'],fields:[{key:'siteId',label:'Site',ref:'site'},{key:'materialId',label:'Material',ref:'material'},{key:'quantity',label:'Quantity required',type:'number'},{key:'neededOn',label:'Needed on',type:'date'},{key:'costCode',label:'Cost code'},{key:'note',label:'Site notes',type:'textarea',optional:true}]},
-  issue: {title:'Stock issues',singular:'material issue',subtitle:'Issue approved quantities. Every issue posts to the cost ledger.',columns:['requisitionId','materialId','quantity','amountMinor'],fields:[{key:'requisitionId',label:'Approved requisition',ref:'requisition'},{key:'quantity',label:'Quantity to issue',type:'number'}]},
-  return: {title:'Material returns',singular:'return',subtitle:'Return unused materials and reverse their original cost.',columns:['issueId','quantity','note'],fields:[{key:'issueId',label:'Original issue',ref:'issue'},{key:'quantity',label:'Returned quantity',type:'number'},{key:'note',label:'Reason',type:'textarea',optional:true}]},
-  transfer: {title:'Site transfers',singular:'transfer',subtitle:'Track materials from dispatch through receipt.',columns:['siteId','destinationSiteId','materialId','quantity'],fields:[{key:'siteId',label:'From site',ref:'site'},{key:'destinationSiteId',label:'Destination site',ref:'site'},{key:'materialId',label:'Material',ref:'material'},{key:'quantity',label:'Transfer quantity',type:'number'},{key:'note',label:'Dispatch notes',type:'textarea',optional:true}]},
+  material: {
+    title: "Material catalog",
+    singular: "material",
+    subtitle: "Every material, with one dependable source of truth.",
+    columns: ["sku", "name", "unit", "minimum"],
+    fields: [
+      { key: "sku", label: "SKU" },
+      { key: "name", label: "Material name" },
+      {
+        key: "unit",
+        label: "Unit",
+        options: ["bag", "kg", "ton", "m³", "m²", "piece", "litre"],
+      },
+      {
+        key: "minimum",
+        label: "Low stock threshold",
+        type: "number",
+        default: 0,
+      },
+    ],
+  },
+  supplier: {
+    title: "Suppliers",
+    singular: "supplier",
+    subtitle: "The partners keeping your sites moving.",
+    columns: ["name", "phone", "address"],
+    fields: [
+      { key: "name", label: "Supplier name" },
+      { key: "phone", label: "Phone number" },
+      { key: "address", label: "Address", optional: true },
+    ],
+  },
+  receipt: {
+    title: "Goods received",
+    singular: "goods receipt",
+    subtitle: "Receive materials and update stock at moving average cost.",
+    columns: ["invoiceNo", "siteId", "materialId", "quantity", "costMinor"],
+    fields: [
+      { key: "siteId", label: "Receiving site", ref: "site" },
+      { key: "supplierId", label: "Supplier", ref: "supplier" },
+      { key: "invoiceNo", label: "Supplier invoice number" },
+      { key: "materialId", label: "Material", ref: "material" },
+      { key: "quantity", label: "Quantity received", type: "number" },
+      { key: "costMinor", label: "Unit cost (BDT)", type: "money" },
+    ],
+  },
+  requisition: {
+    title: "Material requisitions",
+    singular: "requisition",
+    subtitle: "From site request to approved material issue.",
+    columns: [
+      "materialId",
+      "siteId",
+      "quantity",
+      "issued",
+      "neededOn",
+      "costCode",
+    ],
+    fields: [
+      { key: "siteId", label: "Site", ref: "site" },
+      { key: "materialId", label: "Material", ref: "material" },
+      { key: "quantity", label: "Quantity required", type: "number" },
+      { key: "neededOn", label: "Needed on", type: "date" },
+      { key: "costCode", label: "Cost code" },
+      { key: "note", label: "Site notes", type: "textarea", optional: true },
+    ],
+  },
+  issue: {
+    title: "Stock issues",
+    singular: "material issue",
+    subtitle:
+      "Issue approved quantities. Every issue posts to the cost ledger.",
+    columns: ["requisitionId", "materialId", "quantity", "amountMinor"],
+    fields: [
+      {
+        key: "requisitionId",
+        label: "Approved requisition",
+        ref: "requisition",
+      },
+      { key: "quantity", label: "Quantity to issue", type: "number" },
+    ],
+  },
+  return: {
+    title: "Material returns",
+    singular: "return",
+    subtitle: "Return unused materials and reverse their original cost.",
+    columns: ["issueId", "quantity", "note"],
+    fields: [
+      { key: "issueId", label: "Original issue", ref: "issue" },
+      { key: "quantity", label: "Returned quantity", type: "number" },
+      { key: "note", label: "Reason", type: "textarea", optional: true },
+    ],
+  },
+  transfer: {
+    title: "Site transfers",
+    singular: "transfer",
+    subtitle: "Track materials from dispatch through receipt.",
+    columns: ["siteId", "destinationSiteId", "materialId", "quantity"],
+    fields: [
+      { key: "siteId", label: "From site", ref: "site" },
+      { key: "destinationSiteId", label: "Destination site", ref: "site" },
+      { key: "materialId", label: "Material", ref: "material" },
+      { key: "quantity", label: "Transfer quantity", type: "number" },
+      {
+        key: "note",
+        label: "Dispatch notes",
+        type: "textarea",
+        optional: true,
+      },
+    ],
+  },
 };

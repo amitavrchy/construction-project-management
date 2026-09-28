@@ -1,23 +1,325 @@
-'use client';
-import Link from 'next/link';
-import { ArrowUpRight, ArrowRight, Wallet, HardHat, Boxes, ClipboardCheck, Sun, CircleCheck, Clock3, AlertTriangle, Plus } from 'lucide-react';
-import { useWorkspace } from './provider';
-import { money, today, readableDate, label } from '../lib/format';
-import { Status } from './status';
-import { BudgetChart } from './budget-chart';
-import { costHeads } from '../lib/costs';
+"use client";
+import Link from "next/link";
+import {
+  ArrowUpRight,
+  ArrowRight,
+  Wallet,
+  HardHat,
+  Boxes,
+  ClipboardCheck,
+  Sun,
+  CircleCheck,
+  Clock3,
+  AlertTriangle,
+  Plus,
+} from "lucide-react";
+import { useWorkspace } from "./provider";
+import { money, today, readableDate, label } from "../lib/format";
+import { Status } from "./status";
+import { BudgetChart } from "./budget-chart";
+import { costHeads } from "../lib/costs";
 export function Dashboard() {
-  const { user, snapshot: s } = useWorkspace(); if (!s) return null;
-  const get = (kind: string) => s.records.filter(r => r.kind === kind);
-  const budgets = get('budget').filter(r => r.status === 'APPROVED');
-  const totalBudget = budgets.reduce((n,r) => n+r.data.amountMinor,0) + get('variation').filter(r => r.status === 'APPROVED').reduce((n,r) => n+r.data.deltaAmountMinor,0);
-  const actual = s.ledger.reduce((n,r) => n+r.amountMinor,0);
-  const latest = new Map<string,number>(); for(const r of get('progress')) if(!latest.has(r.data.boqId)) latest.set(r.data.boqId,r.data.percent);
-  const progress = get('boq').length ? Math.round([...latest.values()].reduce((a,b) => a+b,0)/get('boq').length) : 0;
-  const pending = s.records.filter(r => ['SUBMITTED','PM_APPROVED','CALCULATED'].includes(r.status));
-  const onSite = get('attendance').filter(r => r.data.date === today() && r.data.status !== 'ABSENT').length;
-  const lowStock = s.stock.filter(st => Number(st.quantity) <= (get('material').find(m => m.id === st.materialId)?.data.minimum || 0));
-  const codes = [...new Set([...budgets.map(r => r.data.costCode),...s.ledger.map(r => r.costCode)])];
+  const { user, snapshot: s } = useWorkspace();
+  if (!s) return null;
+  const get = (kind: string) => s.records.filter((r) => r.kind === kind);
+  const budgets = get("budget").filter((r) => r.status === "APPROVED");
+  const totalBudget =
+    budgets.reduce((n, r) => n + r.data.amountMinor, 0) +
+    get("variation")
+      .filter((r) => r.status === "APPROVED")
+      .reduce((n, r) => n + r.data.deltaAmountMinor, 0);
+  const actual = s.ledger.reduce((n, r) => n + r.amountMinor, 0);
+  const latest = new Map<string, number>();
+  for (const r of get("progress"))
+    if (!latest.has(r.data.boqId)) latest.set(r.data.boqId, r.data.percent);
+  const progress = get("boq").length
+    ? Math.round(
+        [...latest.values()].reduce((a, b) => a + b, 0) / get("boq").length,
+      )
+    : 0;
+  const pending = s.records.filter((r) =>
+    ["SUBMITTED", "PM_APPROVED", "CALCULATED"].includes(r.status),
+  );
+  const onSite = get("attendance").filter(
+    (r) => r.data.date === today() && r.data.status !== "ABSENT",
+  ).length;
+  const lowStock = s.stock.filter(
+    (st) =>
+      Number(st.quantity) <=
+      (get("material").find((m) => m.id === st.materialId)?.data.minimum || 0),
+  );
+  const codes = [
+    ...new Set([
+      ...budgets.map((r) => r.data.costCode),
+      ...s.ledger.map((r) => r.costCode),
+    ]),
+  ];
   const chart = costHeads(s);
-  return <><div className="page-heading"><div><div className="greeting"><Sun size={17}/>YOUR PROJECT, AT A GLANCE</div><h1>Good to see you, {user?.name.split(' ')[0]} <span className="wave">↗</span></h1><p>Here’s what’s happening across your site today.</p></div><div className="date-pill"><Clock3 size={17}/>{readableDate(today())}</div></div><div className="project-banner"><div className="banner-copy"><span className="banner-label"><span className="live-dot"/>LIVE PROJECT · {s.project.code}</span><h2>{s.project.name}</h2><p>{s.project.address}</p><div className="banner-meta"><Status value={s.project.status}/><span>{s.project.sites.length} construction {s.project.sites.length === 1 ? 'site' : 'sites'}</span><span>{readableDate(s.project.startsOn)} – {readableDate(s.project.endsOn)}</span></div></div><div className="banner-progress"><div className="progress-ring" style={{'--progress':`${progress}%`} as React.CSSProperties}><div><strong>{progress}%</strong><span>Completed</span></div></div><span>Building toward the finish line</span></div><div className="banner-grid"/></div><div className="stat-grid">{[{title:'Approved budget',value:money(totalBudget,true),detail:`${budgets.length} approved budget heads`,icon:Wallet,tone:'green',href:'budget'},{title:'Actual expenditure',value:money(actual,true),detail:totalBudget ? `${Math.round(actual/totalBudget*100)}% of approved budget` : 'Approve a budget to track utilization',icon:ClipboardCheck,tone:'blue',href:'reports'},{title:'People on site',value:String(onSite).padStart(2,'0'),detail:`${get('worker').length} workers in your team`,icon:HardHat,tone:'orange',href:'attendance'},{title:'Pending approvals',value:String(pending.length).padStart(2,'0'),detail:pending.length ? 'Ready for your team to review' : 'You’re all caught up',icon:Clock3,tone:'purple',href:'requisition'}].map(stat => <Link href={`/${stat.href}`} className="stat-card" key={stat.title}><div className="stat-top"><span>{stat.title}</span><span className={`stat-icon ${stat.tone}`}><stat.icon size={20}/></span></div><strong>{stat.value}</strong><div className="stat-bottom"><span>{stat.detail}</span><ArrowUpRight size={17}/></div></Link>)}</div><div className="dashboard-grid"><section className="panel cost-panel"><div className="panel-heading"><div><h3>Budget meets reality</h3><p>Keep an eye on where every taka goes.</p></div><Link href="/reports" className="text-button">View report<ArrowUpRight size={17}/></Link></div>{chart.length ? <BudgetChart data={chart}/> : <div className="empty"><Wallet size={30}/><p>Approved budgets and posted costs will appear here.</p></div>}<div className="cost-summary"><span><i className="live-dot"/>Available budget</span><strong>{money(totalBudget-actual)}</strong></div></section><section className="panel attention-panel"><div className="panel-heading"><div><h3>A little attention needed</h3><p>Small actions. Steady progress.</p></div><span className="count-badge">{pending.length+lowStock.length}</span></div><div className="attention-list">{pending.slice(0,3).map(r => <Link href={`/${r.kind}`} key={r.id} className="attention-item"><span className="attention-icon amber"><Clock3 size={19}/></span><div><strong>{r.data.name || r.data.billNo || `${label(r.kind)} approval`}</strong><p>{label(r.status)} · {readableDate(r.createdAt)}</p></div><ArrowRight size={17}/></Link>)}{lowStock.slice(0,2).map(st => <Link href="/stock" key={st.id} className="attention-item"><span className="attention-icon red"><Boxes size={19}/></span><div><strong>{get('material').find(r => r.id === st.materialId)?.data.name || 'Material'} running low</strong><p>{st.quantity} remaining in stock</p></div><ArrowRight size={17}/></Link>)}{!pending.length && !lowStock.length && <div className="empty"><CircleCheck size={32}/><h3>Looking good!</h3><p>No pending approvals or stock alerts.</p></div>}</div><Link href="/requisition" className="panel-link">Go to requisitions<ArrowRight size={17}/></Link></section><section className="panel"><div className="panel-heading"><div><h3>Progress on the ground</h3><p>Your latest work item updates.</p></div><Link href="/progress" className="text-button">See all<ArrowUpRight size={17}/></Link></div><div className="work-progress-list">{[...latest.entries()].slice(0,4).map(([id,percent]) => <div className="work-progress-item" key={id}><div><span>{get('boq').find(b => b.id === id)?.data.description || 'Work item'}</span><strong>{percent}%</strong></div><div className="progress-track"><i style={{width:`${Math.min(percent,100)}%`}}/></div></div>)}{!latest.size && <p className="muted">No progress updates yet. Capture the first milestone.</p>}</div></section><section className="panel"><div className="panel-heading"><div><h3>Workspace activity</h3><p>A shared record of what’s moving.</p></div><span className="live-label"><span className="live-dot"/>Live</span></div><div className="activity-list">{s.audits.slice(0,4).map((a,i) => <div className="activity-item" key={a.id}><span className={`activity-dot dot-${i%3}`}/><div><strong>{label(a.action.replaceAll('.',' '))}</strong><p>{readableDate(a.createdAt)} · {a.actorId === 'SYSTEM' ? 'Scheduled update' : 'Project team'}</p></div></div>)}{!s.audits.length && <p className="muted">Your team’s activity will appear here.</p>}</div></section></div><div className="dashboard-footer"><span><CircleCheck size={16}/>All figures in BDT · Times in Asia/Dhaka</span><span>Good foundations. Better outcomes.</span></div></>;
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <div className="greeting">
+            <Sun size={17} />
+            YOUR PROJECT, AT A GLANCE
+          </div>
+          <h1>
+            Good to see you, {user?.name.split(" ")[0]}{" "}
+            <span className="wave">↗</span>
+          </h1>
+          <p>Here’s what’s happening across your site today.</p>
+        </div>
+        <div className="date-pill">
+          <Clock3 size={17} />
+          {readableDate(today())}
+        </div>
+      </div>
+      <div className="project-banner">
+        <div className="banner-copy">
+          <span className="banner-label">
+            <span className="live-dot" />
+            LIVE PROJECT · {s.project.code}
+          </span>
+          <h2>{s.project.name}</h2>
+          <p>{s.project.address}</p>
+          <div className="banner-meta">
+            <Status value={s.project.status} />
+            <span>
+              {s.project.sites.length} construction{" "}
+              {s.project.sites.length === 1 ? "site" : "sites"}
+            </span>
+            <span>
+              {readableDate(s.project.startsOn)} –{" "}
+              {readableDate(s.project.endsOn)}
+            </span>
+          </div>
+        </div>
+        <div className="banner-progress">
+          <div
+            className="progress-ring"
+            style={{ "--progress": `${progress}%` } as React.CSSProperties}
+          >
+            <div>
+              <strong>{progress}%</strong>
+              <span>Completed</span>
+            </div>
+          </div>
+          <span>Building toward the finish line</span>
+        </div>
+        <div className="banner-grid" />
+      </div>
+      <div className="stat-grid">
+        {[
+          {
+            title: "Approved budget",
+            value: money(totalBudget, true),
+            detail: `${budgets.length} approved budget heads`,
+            icon: Wallet,
+            tone: "green",
+            href: "budget",
+          },
+          {
+            title: "Actual expenditure",
+            value: money(actual, true),
+            detail: totalBudget
+              ? `${Math.round((actual / totalBudget) * 100)}% of approved budget`
+              : "Approve a budget to track utilization",
+            icon: ClipboardCheck,
+            tone: "blue",
+            href: "reports",
+          },
+          {
+            title: "People on site",
+            value: String(onSite).padStart(2, "0"),
+            detail: `${get("worker").length} workers in your team`,
+            icon: HardHat,
+            tone: "orange",
+            href: "attendance",
+          },
+          {
+            title: "Pending approvals",
+            value: String(pending.length).padStart(2, "0"),
+            detail: pending.length
+              ? "Ready for your team to review"
+              : "You’re all caught up",
+            icon: Clock3,
+            tone: "purple",
+            href: "requisition",
+          },
+        ].map((stat) => (
+          <Link href={`/${stat.href}`} className="stat-card" key={stat.title}>
+            <div className="stat-top">
+              <span>{stat.title}</span>
+              <span className={`stat-icon ${stat.tone}`}>
+                <stat.icon size={20} />
+              </span>
+            </div>
+            <strong>{stat.value}</strong>
+            <div className="stat-bottom">
+              <span>{stat.detail}</span>
+              <ArrowUpRight size={17} />
+            </div>
+          </Link>
+        ))}
+      </div>
+      <div className="dashboard-grid">
+        <section className="panel cost-panel">
+          <div className="panel-heading">
+            <div>
+              <h3>Budget meets reality</h3>
+              <p>Keep an eye on where every taka goes.</p>
+            </div>
+            <Link href="/reports" className="text-button">
+              View report
+              <ArrowUpRight size={17} />
+            </Link>
+          </div>
+          {chart.length ? (
+            <BudgetChart data={chart} />
+          ) : (
+            <div className="empty">
+              <Wallet size={30} />
+              <p>Approved budgets and posted costs will appear here.</p>
+            </div>
+          )}
+          <div className="cost-summary">
+            <span>
+              <i className="live-dot" />
+              Available budget
+            </span>
+            <strong>{money(totalBudget - actual)}</strong>
+          </div>
+        </section>
+        <section className="panel attention-panel">
+          <div className="panel-heading">
+            <div>
+              <h3>A little attention needed</h3>
+              <p>Small actions. Steady progress.</p>
+            </div>
+            <span className="count-badge">
+              {pending.length + lowStock.length}
+            </span>
+          </div>
+          <div className="attention-list">
+            {pending.slice(0, 3).map((r) => (
+              <Link href={`/${r.kind}`} key={r.id} className="attention-item">
+                <span className="attention-icon amber">
+                  <Clock3 size={19} />
+                </span>
+                <div>
+                  <strong>
+                    {r.data.name ||
+                      r.data.billNo ||
+                      `${label(r.kind)} approval`}
+                  </strong>
+                  <p>
+                    {label(r.status)} · {readableDate(r.createdAt)}
+                  </p>
+                </div>
+                <ArrowRight size={17} />
+              </Link>
+            ))}
+            {lowStock.slice(0, 2).map((st) => (
+              <Link href="/stock" key={st.id} className="attention-item">
+                <span className="attention-icon red">
+                  <Boxes size={19} />
+                </span>
+                <div>
+                  <strong>
+                    {get("material").find((r) => r.id === st.materialId)?.data
+                      .name || "Material"}{" "}
+                    running low
+                  </strong>
+                  <p>{st.quantity} remaining in stock</p>
+                </div>
+                <ArrowRight size={17} />
+              </Link>
+            ))}
+            {!pending.length && !lowStock.length && (
+              <div className="empty">
+                <CircleCheck size={32} />
+                <h3>Looking good!</h3>
+                <p>No pending approvals or stock alerts.</p>
+              </div>
+            )}
+          </div>
+          <Link href="/requisition" className="panel-link">
+            Go to requisitions
+            <ArrowRight size={17} />
+          </Link>
+        </section>
+        <section className="panel">
+          <div className="panel-heading">
+            <div>
+              <h3>Progress on the ground</h3>
+              <p>Your latest work item updates.</p>
+            </div>
+            <Link href="/progress" className="text-button">
+              See all
+              <ArrowUpRight size={17} />
+            </Link>
+          </div>
+          <div className="work-progress-list">
+            {[...latest.entries()].slice(0, 4).map(([id, percent]) => (
+              <div className="work-progress-item" key={id}>
+                <div>
+                  <span>
+                    {get("boq").find((b) => b.id === id)?.data.description ||
+                      "Work item"}
+                  </span>
+                  <strong>{percent}%</strong>
+                </div>
+                <div className="progress-track">
+                  <i style={{ width: `${Math.min(percent, 100)}%` }} />
+                </div>
+              </div>
+            ))}
+            {!latest.size && (
+              <p className="muted">
+                No progress updates yet. Capture the first milestone.
+              </p>
+            )}
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-heading">
+            <div>
+              <h3>Workspace activity</h3>
+              <p>A shared record of what’s moving.</p>
+            </div>
+            <span className="live-label">
+              <span className="live-dot" />
+              Live
+            </span>
+          </div>
+          <div className="activity-list">
+            {s.audits.slice(0, 4).map((a, i) => (
+              <div className="activity-item" key={a.id}>
+                <span className={`activity-dot dot-${i % 3}`} />
+                <div>
+                  <strong>{label(a.action.replaceAll(".", " "))}</strong>
+                  <p>
+                    {readableDate(a.createdAt)} ·{" "}
+                    {a.actorId === "SYSTEM"
+                      ? "Scheduled update"
+                      : "Project team"}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {!s.audits.length && (
+              <p className="muted">Your team’s activity will appear here.</p>
+            )}
+          </div>
+        </section>
+      </div>
+      <div className="dashboard-footer">
+        <span>
+          <CircleCheck size={16} />
+          All figures in BDT · Times in Asia/Dhaka
+        </span>
+        <span>Good foundations. Better outcomes.</span>
+      </div>
+    </>
+  );
 }

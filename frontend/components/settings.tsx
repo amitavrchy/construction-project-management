@@ -1,14 +1,164 @@
-'use client';
-import { useState } from 'react';
-import { ShieldCheck, MapPin, Plus, Settings2 } from 'lucide-react';
-import { useWorkspace } from './provider';
-import { RecordForm } from './record-form';
-import { Modal } from './modal';
-import { Status } from './status';
-import { label } from '../lib/format';
+"use client";
+import { useState } from "react";
+import { ShieldCheck, MapPin, Plus, Settings2 } from "lucide-react";
+import { useWorkspace } from "./provider";
+import { RecordForm } from "./record-form";
+import { Modal } from "./modal";
+import { Status } from "./status";
+import { label } from "../lib/format";
 export function Settings() {
-  const {user,snapshot:s,projectId,mutate} = useWorkspace();const [site,setSite] = useState(false),[password,setPassword] = useState(false),[error,setError] = useState(''); if(!s)return null;
-  const manager = ['COMPANY_ADMIN','PROJECT_MANAGER'].includes(s.role);
-  const next: Record<string,string[]> = {PLANNING:['ACTIVE','CANCELLED'],ACTIVE:['ON_HOLD','COMPLETED','CANCELLED'],ON_HOLD:['ACTIVE','CANCELLED'],COMPLETED:[],CANCELLED:[]};
-  return <><div className="page-heading"><div><span className="eyebrow">MAKE THE WORKSPACE YOURS</span><h1>Workspace settings</h1><p>Your account, project lifecycle and construction sites.</p></div></div><div className="settings-grid"><section className="panel settings-panel"><ShieldCheck size={25}/><h3>Your account</h3><dl><div><dt>Name</dt><dd>{user?.name}</dd></div><div><dt>Email</dt><dd>{user?.email}</dd></div><div><dt>Project role</dt><dd>{label(s.role)}</dd></div><div><dt>Currency / time zone</dt><dd>BDT / Asia/Dhaka</dd></div></dl><button className="button secondary" onClick={() => setPassword(true)}>Change password</button></section><section className="panel settings-panel"><Settings2 size={25}/><h3>Project lifecycle</h3><p>Current project status</p><Status value={s.project.status}/>{manager && <div className="lifecycle-actions">{next[s.project.status]?.map(status => <button className="button secondary" key={status} onClick={async () => {if(['COMPLETED','CANCELLED'].includes(status) && !window.confirm(`Mark project as ${status.toLowerCase()}? New records will be blocked.`))return;try{await mutate(`projects/${projectId}/status`,{status},'PATCH');}catch(e){setError((e as Error).message);}}}>{label(status)}</button>)}</div>}{error && <p className="form-error">{error}</p>}</section><section className="panel settings-panel"><div className="panel-heading compact"><h3>Construction sites</h3>{manager && <button className="text-button" onClick={() => setSite(true)}><Plus size={17}/>Add site</button>}</div>{s.project.sites.map(site => <div className="site-row" key={site.id}><MapPin size={20}/><div><strong>{site.name}</strong><p>{site.address}</p></div></div>)}</section><section className="panel settings-panel"><h3>Approval controls</h3><p>PM and Accounts approvals require separate people. Approved budgets stay locked, and revisions preserve their history.</p><p>Material issues, certified bills and approved wages post to an immutable cost ledger.</p></section></div>{site && <Modal title="Add construction site" close={() => setSite(false)}><RecordForm fields={[{key:'name',label:'Site name'},{key:'address',label:'Site address'}]} close={() => setSite(false)} onSubmit={d => mutate(`projects/${projectId}/sites`,d)}/></Modal>}{password && <Modal title="Change password" close={() => setPassword(false)}><RecordForm fields={[{key:'currentPassword',label:'Current password',type:'password'},{key:'password',label:'New password (12+ characters)',type:'password'}]} close={() => setPassword(false)} onSubmit={d => mutate('auth/password',d)}/></Modal>}</>;
+  const { user, snapshot: s, projectId, mutate } = useWorkspace();
+  const [site, setSite] = useState(false),
+    [password, setPassword] = useState(false),
+    [error, setError] = useState("");
+  if (!s) return null;
+  const manager = ["COMPANY_ADMIN", "PROJECT_MANAGER"].includes(s.role);
+  const next: Record<string, string[]> = {
+    PLANNING: ["ACTIVE", "CANCELLED"],
+    ACTIVE: ["ON_HOLD", "COMPLETED", "CANCELLED"],
+    ON_HOLD: ["ACTIVE", "CANCELLED"],
+    COMPLETED: [],
+    CANCELLED: [],
+  };
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <span className="eyebrow">MAKE THE WORKSPACE YOURS</span>
+          <h1>Workspace settings</h1>
+          <p>Your account, project lifecycle and construction sites.</p>
+        </div>
+      </div>
+      <div className="settings-grid">
+        <section className="panel settings-panel">
+          <ShieldCheck size={25} />
+          <h3>Your account</h3>
+          <dl>
+            <div>
+              <dt>Name</dt>
+              <dd>{user?.name}</dd>
+            </div>
+            <div>
+              <dt>Email</dt>
+              <dd>{user?.email}</dd>
+            </div>
+            <div>
+              <dt>Project role</dt>
+              <dd>{label(s.role)}</dd>
+            </div>
+            <div>
+              <dt>Currency / time zone</dt>
+              <dd>BDT / Asia/Dhaka</dd>
+            </div>
+          </dl>
+          <button
+            className="button secondary"
+            onClick={() => setPassword(true)}
+          >
+            Change password
+          </button>
+        </section>
+        <section className="panel settings-panel">
+          <Settings2 size={25} />
+          <h3>Project lifecycle</h3>
+          <p>Current project status</p>
+          <Status value={s.project.status} />
+          {manager && (
+            <div className="lifecycle-actions">
+              {next[s.project.status]?.map((status) => (
+                <button
+                  className="button secondary"
+                  key={status}
+                  onClick={async () => {
+                    if (
+                      ["COMPLETED", "CANCELLED"].includes(status) &&
+                      !window.confirm(
+                        `Mark project as ${status.toLowerCase()}? New records will be blocked.`,
+                      )
+                    )
+                      return;
+                    try {
+                      await mutate(
+                        `projects/${projectId}/status`,
+                        { status },
+                        "PATCH",
+                      );
+                    } catch (e) {
+                      setError((e as Error).message);
+                    }
+                  }}
+                >
+                  {label(status)}
+                </button>
+              ))}
+            </div>
+          )}
+          {error && <p className="form-error">{error}</p>}
+        </section>
+        <section className="panel settings-panel">
+          <div className="panel-heading compact">
+            <h3>Construction sites</h3>
+            {manager && (
+              <button className="text-button" onClick={() => setSite(true)}>
+                <Plus size={17} />
+                Add site
+              </button>
+            )}
+          </div>
+          {s.project.sites.map((site) => (
+            <div className="site-row" key={site.id}>
+              <MapPin size={20} />
+              <div>
+                <strong>{site.name}</strong>
+                <p>{site.address}</p>
+              </div>
+            </div>
+          ))}
+        </section>
+        <section className="panel settings-panel">
+          <h3>Approval controls</h3>
+          <p>
+            PM and Accounts approvals require separate people. Approved budgets
+            stay locked, and revisions preserve their history.
+          </p>
+          <p>
+            Material issues, certified bills and approved wages post to an
+            immutable cost ledger.
+          </p>
+        </section>
+      </div>
+      {site && (
+        <Modal title="Add construction site" close={() => setSite(false)}>
+          <RecordForm
+            fields={[
+              { key: "name", label: "Site name" },
+              { key: "address", label: "Site address" },
+            ]}
+            close={() => setSite(false)}
+            onSubmit={(d) => mutate(`projects/${projectId}/sites`, d)}
+          />
+        </Modal>
+      )}
+      {password && (
+        <Modal title="Change password" close={() => setPassword(false)}>
+          <RecordForm
+            fields={[
+              {
+                key: "currentPassword",
+                label: "Current password",
+                type: "password",
+              },
+              {
+                key: "password",
+                label: "New password (12+ characters)",
+                type: "password",
+              },
+            ]}
+            close={() => setPassword(false)}
+            onSubmit={(d) => mutate("auth/password", d)}
+          />
+        </Modal>
+      )}
+    </>
+  );
 }

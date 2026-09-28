@@ -1,0 +1,8 @@
+node_modules
+.next
+dist
+package-lock.json
+artifacts
+test-results
+frontend/AGENTS.md
+Project_spec.md

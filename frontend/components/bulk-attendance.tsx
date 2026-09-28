@@ -1,10 +1,152 @@
-'use client';
-import { useState } from 'react';
-import { useWorkspace } from './provider';
-import { today } from '../lib/format';
-export function BulkAttendance({close}:{close:()=>void}){
-  const {snapshot:s,projectId,mutate}=useWorkspace();
-  const workers=s?.records.filter(r=>r.kind==='worker')||[];
-  const [date,setDate]=useState(today()),[siteId,setSiteId]=useState(s?.project.sites[0]?.id||''),[shift,setShift]=useState('DAY'),[rows,setRows]=useState<Record<string,{status:string;otHours:number}>>({}),[busy,setBusy]=useState(false),[error,setError]=useState('');
-  return <form className="record-form" onSubmit={async e=>{e.preventDefault();setBusy(true);setError('');try{await mutate(`projects/${projectId}/attendance/bulk`,workers.map(w=>({workerId:w.id,siteId,date,shift,status:rows[w.id]?.status||'PRESENT',otHours:rows[w.id]?.otHours||0})));close();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}><div className="form-grid"><label>Shift start date<input aria-label="Bulk attendance date" type="date" value={date} onChange={e=>setDate(e.target.value)} required/></label><label>Site<select aria-label="Bulk attendance site" value={siteId} onChange={e=>setSiteId(e.target.value)}>{s?.project.sites.map(site=><option key={site.id} value={site.id}>{site.name}</option>)}</select></label><label>Shift<select value={shift} onChange={e=>setShift(e.target.value)}><option>DAY</option><option>NIGHT</option></select></label></div><p className="muted" style={{margin:'20px 0'}}>All rows are saved together. Existing attendance for the same worker, site and date is protected.</p><div className="table-scroll"><table><thead><tr><th>Worker</th><th>Attendance</th><th>OT hours</th></tr></thead><tbody>{workers.map(w=><tr key={w.id}><td>{w.data.name}</td><td><select aria-label={`${w.data.name} attendance`} value={rows[w.id]?.status||'PRESENT'} onChange={e=>setRows(r=>({...r,[w.id]:{otHours:r[w.id]?.otHours||0,status:e.target.value}}))}><option>PRESENT</option><option>HALF</option><option>ABSENT</option></select></td><td><input style={{width:90}} aria-label={`${w.data.name} overtime`} type="number" min="0" max="16" step="0.25" value={rows[w.id]?.otHours||0} onChange={e=>setRows(r=>({...r,[w.id]:{status:r[w.id]?.status||'PRESENT',otHours:Number(e.target.value)}}))}/></td></tr>)}</tbody></table></div>{error&&<p className="form-error" role="alert">{error}</p>}<div className="form-actions"><button type="button" className="button secondary" onClick={close}>Cancel</button><button className="button primary" disabled={busy||!workers.length}>{busy?'Saving muster…':`Save ${workers.length} attendance rows`}</button></div></form>;
+"use client";
+import { useState } from "react";
+import { useWorkspace } from "./provider";
+import { today } from "../lib/format";
+export function BulkAttendance({ close }: { close: () => void }) {
+  const { snapshot: s, projectId, mutate } = useWorkspace();
+  const workers = s?.records.filter((r) => r.kind === "worker") || [];
+  const [date, setDate] = useState(today()),
+    [siteId, setSiteId] = useState(s?.project.sites[0]?.id || ""),
+    [shift, setShift] = useState("DAY"),
+    [rows, setRows] = useState<
+      Record<string, { status: string; otHours: number }>
+    >({}),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  return (
+    <form
+      className="record-form"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setBusy(true);
+        setError("");
+        try {
+          await mutate(
+            `projects/${projectId}/attendance/bulk`,
+            workers.map((w) => ({
+              workerId: w.id,
+              siteId,
+              date,
+              shift,
+              status: rows[w.id]?.status || "PRESENT",
+              otHours: rows[w.id]?.otHours || 0,
+            })),
+          );
+          close();
+        } catch (e) {
+          setError((e as Error).message);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <div className="form-grid">
+        <label>
+          Shift start date
+          <input
+            aria-label="Bulk attendance date"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            required
+          />
+        </label>
+        <label>
+          Site
+          <select
+            aria-label="Bulk attendance site"
+            value={siteId}
+            onChange={(e) => setSiteId(e.target.value)}
+          >
+            {s?.project.sites.map((site) => (
+              <option key={site.id} value={site.id}>
+                {site.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Shift
+          <select value={shift} onChange={(e) => setShift(e.target.value)}>
+            <option>DAY</option>
+            <option>NIGHT</option>
+          </select>
+        </label>
+      </div>
+      <p className="muted" style={{ margin: "20px 0" }}>
+        All rows are saved together. Existing attendance for the same worker,
+        site and date is protected.
+      </p>
+      <div className="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Worker</th>
+              <th>Attendance</th>
+              <th>OT hours</th>
+            </tr>
+          </thead>
+          <tbody>
+            {workers.map((w) => (
+              <tr key={w.id}>
+                <td>{w.data.name}</td>
+                <td>
+                  <select
+                    aria-label={`${w.data.name} attendance`}
+                    value={rows[w.id]?.status || "PRESENT"}
+                    onChange={(e) =>
+                      setRows((r) => ({
+                        ...r,
+                        [w.id]: {
+                          otHours: r[w.id]?.otHours || 0,
+                          status: e.target.value,
+                        },
+                      }))
+                    }
+                  >
+                    <option>PRESENT</option>
+                    <option>HALF</option>
+                    <option>ABSENT</option>
+                  </select>
+                </td>
+                <td>
+                  <input
+                    style={{ width: 90 }}
+                    aria-label={`${w.data.name} overtime`}
+                    type="number"
+                    min="0"
+                    max="16"
+                    step="0.25"
+                    value={rows[w.id]?.otHours || 0}
+                    onChange={(e) =>
+                      setRows((r) => ({
+                        ...r,
+                        [w.id]: {
+                          status: r[w.id]?.status || "PRESENT",
+                          otHours: Number(e.target.value),
+                        },
+                      }))
+                    }
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="form-actions">
+        <button type="button" className="button secondary" onClick={close}>
+          Cancel
+        </button>
+        <button className="button primary" disabled={busy || !workers.length}>
+          {busy ? "Saving muster…" : `Save ${workers.length} attendance rows`}
+        </button>
+      </div>
+    </form>
+  );
 }
