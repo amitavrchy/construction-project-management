@@ -47,7 +47,7 @@ export function BudgetChart({
                   title={`${d.code} actual: ${money(d.actual)}`}
                 />
               </div>
-              <span>{d.code}</span>
+              <span title={d.code}>{d.code}</span>
             </div>
           ))}
         </div>

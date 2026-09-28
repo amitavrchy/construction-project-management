@@ -1,6 +1,6 @@
 import { Data } from "./domain/context";
 export function budgetReport(
-  records: { kind: string; status: string; data: unknown }[],
+  records: { id?: string; kind: string; status: string; data: unknown }[],
   ledger: { costCode: string; amountMinor: number }[],
 ) {
   const approved = records.filter(
@@ -8,6 +8,16 @@ export function budgetReport(
   );
   const codes = new Set([
     ...approved.map((r) => (r.data as Data).costCode as string),
+    ...records
+      .filter((r) => r.kind === "variation" && r.status === "APPROVED")
+      .map(
+        (r) =>
+          records.find(
+            (b) => b.kind === "boq" && b.id === (r.data as Data).boqId,
+          )?.data as Data | undefined,
+      )
+      .filter((d): d is Data => !!d)
+      .map((d) => d.costCode as string),
     ...ledger.map((l) => l.costCode),
   ]);
   return [...codes].map((costCode) => {
@@ -23,7 +33,7 @@ export function budgetReport(
             (b) =>
               b.kind === "boq" &&
               (b.data as Data).costCode === costCode &&
-              (r.data as Data).boqId === (b as any).id,
+              (r.data as Data).boqId === b.id,
           ),
       )
       .reduce((s, r) => s + (r.data as Data).deltaAmountMinor, 0);

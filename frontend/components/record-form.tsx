@@ -137,6 +137,7 @@ export function RecordForm({
                       : "Choose a file to upload"}
                   </span>
                   <input
+                    aria-label={f.label}
                     type="file"
                     accept={
                       f.key === "photo"

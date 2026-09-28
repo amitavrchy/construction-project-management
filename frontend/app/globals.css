@@ -926,8 +926,8 @@ a:focus-visible {
 .chart-column > span {
   position: absolute;
   top: calc(100% + 9px);
-  left: -15px;
-  right: -15px;
+  left: 0;
+  right: 0;
   text-align: center;
   color: #929b88;
   font-size: 14px;

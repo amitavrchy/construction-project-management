@@ -5,6 +5,14 @@ export function costHeads(s: Snapshot) {
   );
   const codes = new Set([
     ...budgets.map((r) => r.data.costCode),
+    ...s.records
+      .filter((r) => r.kind === "variation" && r.status === "APPROVED")
+      .map(
+        (r) =>
+          s.records.find((b) => b.kind === "boq" && b.id === r.data.boqId)?.data
+            .costCode,
+      )
+      .filter(Boolean),
     ...s.ledger.map((r) => r.costCode),
   ]);
   return [...codes].map((code) => {

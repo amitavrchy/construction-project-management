@@ -4,6 +4,23 @@ import { billTotal, movingAverage, wage } from "../src/domain/money";
 import { assertTransition } from "../src/domain/states";
 import { parseRecord } from "../src/domain/schemas";
 import { csv, budgetReport } from "../src/reports";
+test("approved variation without a baseline budget remains visible in reports", () => {
+  const result = budgetReport(
+    [
+      { id: "b", kind: "boq", status: "POSTED", data: { costCode: "EXTRA" } },
+      {
+        id: "v",
+        kind: "variation",
+        status: "APPROVED",
+        data: { boqId: "b", deltaAmountMinor: 50000 },
+      },
+    ],
+    [],
+  );
+  assert.equal(result.length, 1);
+  assert.equal(result[0].budget, 50000);
+  assert.equal(result[0].costCode, "EXTRA");
+});
 test("contractor retention and tax round to paisa", () => {
   assert.deepEqual(billTotal(3, 12345, 500, 300, 100, 50), {
     gross: 37035,

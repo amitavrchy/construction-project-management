@@ -3,7 +3,13 @@ import { config } from "dotenv";
 import { resolve } from "node:path";
 config({ path: resolve(process.cwd(), ".env"), quiet: true });
 config({ path: resolve(process.cwd(), "../.env"), quiet: true });
-import { Module, Controller, Get } from "@nestjs/common";
+import {
+  Module,
+  Controller,
+  Get,
+  Inject,
+  ServiceUnavailableException,
+} from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
@@ -19,8 +25,13 @@ import { startJobs } from "./jobs";
 import { Cache } from "./cache";
 @Controller("health")
 class HealthController {
-  constructor(private readonly db: Db) {}
+  constructor(@Inject(Db) private readonly db: Db) {}
   @Get() async check() {
+    try {
+      await this.db.$queryRawUnsafe("SELECT 1");
+    } catch {
+      throw new ServiceUnavailableException("Database is unavailable");
+    }
     return { status: "ok" };
   }
 }

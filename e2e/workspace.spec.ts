@@ -75,6 +75,31 @@ test("desktop workflows render, save, search and export with accessible typograp
   const download = page.waitForEvent("download");
   await page.getByRole("link", { name: "Export cost report" }).click();
   expect((await download).suggestedFilename()).toBe("budget-vs-actual.csv");
+  await page.goto("/document");
+  await page.getByRole("button", { name: "New document", exact: true }).click();
+  const documentName = `Drawing verification ${Date.now()}`;
+  await page.getByLabel("Document name", { exact: true }).fill(documentName);
+  await page
+    .getByLabel("PDF or image (max 4 MB)", { exact: true })
+    .setInputFiles({
+      name: "drawing.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF"),
+    });
+  await expect(
+    page.getByLabel("File name (filled on upload)", { exact: true }),
+  ).toHaveValue("drawing.pdf");
+  await page.getByRole("button", { name: "Save record" }).click();
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  await page
+    .getByRole("cell", { name: documentName, exact: true })
+    .locator("..")
+    .getByRole("button", { name: "View record details" })
+    .click();
+  const fileDownload = page.waitForEvent("download");
+  await page.getByRole("link", { name: "Download document" }).click();
+  expect((await fileDownload).suggestedFilename()).toBe("drawing.pdf");
+  await page.getByRole("button", { name: "Close dialog" }).click();
   expect(errors).toEqual([]);
 });
 test("mobile navigation fits viewport and contractor portal restricts records", async ({
