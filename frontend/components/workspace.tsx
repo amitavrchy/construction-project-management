@@ -29,7 +29,7 @@ export function Workspace() {
     logout,
   } = useWorkspace();
   const path = usePathname();
-  const section = path.split("/")[1] || "dashboard";
+  const section = path.split("/")[1] || "control";
   const [mobile, setMobile] = useState(false),
     [refreshing, setRefreshing] = useState(false),
     [localError, setLocalError] = useState("");
@@ -100,7 +100,7 @@ export function Workspace() {
     content = (
       <AdvancedPage key={`${projectId}:${section}`} section={section} />
     );
-  else if (section === "dashboard") content = <Dashboard />;
+  else if (["dashboard", "overview"].includes(section)) content = <Dashboard />;
   else if (section in modules)
     content = <RecordTable key={`${projectId}:${section}`} kind={section} />;
   else if (section === "stock") content = <Stock />;
@@ -159,7 +159,7 @@ export function Workspace() {
                   return (
                     <Link
                       key={id}
-                      href={id === "dashboard" ? "/" : `/${id}`}
+                      href={id === "control" ? "/" : `/${id}`}
                       className={`nav-link ${section === id ? "active" : ""}`}
                       onClick={() => setMobile(false)}
                     >

@@ -1,65 +1,74 @@
-﻿# Sitecraft · Construction, connected.
+# Sitecraft ? construction project control
 
-Construction operations for Bangladesh: Next.js 16 / React 19, NestJS 12, Prisma 6 / PostgreSQL and Redis / BullMQ. Built from [Project_spec.md](./Project_spec.md).
+The repository has exactly two application directories: `frontend/` and `backend/`. Git metadata remains in `.git`. All source, specifications, documentation, tests, infrastructure and package configuration live inside these two directories. Each application has its own package manifest, dependency installation and lockfile.
 
-## Local setup
+## Quick start from the repository root
 
-Requires Node.js 24, npm and Docker Desktop (Linux containers).
+Requires Node.js 24, npm and Docker Desktop with Linux containers.
 
 ```powershell
-npm ci
-npm run setup
-# Edit .env to set SEED_PASSWORD (12+ characters), then synchronize:
-npm run setup
-docker compose up -d
-npm run db:generate
-npm run db:migrate
-npm run db:seed
-npm run dev
+npm ci --prefix backend
+npm ci --prefix frontend
+npm run setup --prefix backend
+# Set SEED_PASSWORD (12+ characters) in backend/.env.
+docker compose -f backend/compose.yaml up -d
+npm run db:generate --prefix backend
+npm run db:migrate --prefix backend
+npm run db:seed --prefix backend
 ```
 
-Open **http://localhost:3000**. API: 4000; PostgreSQL: **55432**; Redis: 6379. Change `API_URL` before building the frontend if the API address changes. `npm run setup` generates a local JWT secret and copies root `.env` to `backend/.env` for Prisma CLI commands.
+Start the two applications in separate terminals:
 
-Login: **admin@sitecraft.local**, password from `SEED_PASSWORD`. Other seed accounts: `pm`, `engineer`, `store`, `accounts`, `supervisor`, `contractor` at `@sitecraft.local`, all with the same initial password. Change passwords in Settings. The seed preserves existing data and does not reset passwords.
+```powershell
+npm run dev --prefix backend
+npm run dev --prefix frontend
+```
 
-## Working modules
+Open **http://localhost:3000**. The API uses port 4000, PostgreSQL 55432, Redis 6379. Login as **admin@sitecraft.local** with `SEED_PASSWORD`. Other seed accounts are `pm`, `engineer`, `store`, `accounts`, `supervisor`, and `contractor` at `@sitecraft.local`. They initially share the seed password; change it in Settings. Existing seed data and passwords are preserved on repeat runs.
 
-- Projects, sites, project lifecycle, company users, project memberships, seven roles and a contractor portal limited to assigned records.
-- Twenty seeded BOQ items; approved budgets by cost head, immutable approved values, editable draft revisions and amount differences; approved variation quantities and budget additions.
-- Materials, suppliers, duplicate invoice protection, GRN with moving average valuation, requisition approval, partial issues, returns and in-transit transfers. Negative stock is blocked.
-- Workers, trades, gangs, rates, individual and atomic bulk attendance, night shift start dates, OT, payroll periods, wage approval and payment. Duplicate attendance and overlapping payroll are blocked.
-- Work orders and RA bills with quantity reservation, retention, tax, advance recovery and penalties. PM and Accounts approval require separate people; certified gross costs post once. Retention release is recorded after defects liability ends.
-- Cumulative BOQ progress with quantity limits and photo evidence above 15% jumps, plus PDF/image document uploads and downloads.
-- Ledger-backed actuals and variance reports, low stock alerts, activity history, safe CSV exports and print styles.
-- Daily 08:00 Asia/Dhaka variance/overdue/retention digests in project activity; previous-month payroll preparation on the first day. Jobs retry on failure. Redis-backed BOQ/stock snapshot endpoints.
-- Responsive UI, consistent **14px minimum** typography, accessible dialogs, keyboard focus, restrained animation and reduced-motion support.
+## Advanced product areas
 
-Admins provision users and projects. Engineers submit requisitions, a different PM/admin approves, and the store keeper issues stock. Contractors/accountants draft RA bills; a PM certifies and a separate accountant approves and records payment. Originators cannot approve their own financial records.
+| Area                  | Working behavior                                                                                                                                                                                                                       |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Control room          | Ledger actuals, approved financial baseline, earned/planned value, CPI/SPI, EAC/ETC/VAC, monthly planned/actual cost trajectory, cash, commitments and risk exposure                                                                   |
+| Planning              | WBS hierarchy, accountable owners, priorities, finish-to-start dependencies, cycle detection, calendar-day critical path and float, baseline conflict warnings, timeline and drag/drop or keyboard execution board                     |
+| Schedule baselines    | Immutable approved task/date/cost snapshots, revision history, stale-baseline protection; EV uses live completion against frozen baseline weights                                                                                      |
+| Budget versions       | Full project versions with multiple cost heads, previous values, removed heads, total differences, submission, independent approval and superseded versions                                                                            |
+| Procurement           | Multi-line purchase orders and material requests, configurable approval thresholds, partial goods receipts, invoice protection, atomic stock issues, batch returns and moving-average valuation                                        |
+| Commercial            | Multi-BOQ contracts, remaining quantity reservations, measured/cumulative quantities, retention/tax/advance/penalty deductions, PM?Accounts certification, partial payment references, overpayment protection and retention settlement |
+| Workforce             | Daily, hourly, monthly calendar-day prorated and certified piecework wages; bulk muster, night shift dates, overtime, unique attendance, payroll overlap and source-period locks                                                       |
+| Site intelligence     | Daily weather/manpower/delay/safety diaries, plant register, runtime/fuel logs and independent cost approval                                                                                                                           |
+| Coordination          | Probability?impact risk register, mitigation owners, risk matrix, assigned RFIs, recorded answers, closure/reopening and discussion threads                                                                                            |
+| Approvals and audit   | Cross-module inbox, author/approver segregation, amount/role policy matrix, optimistic record revisions, per-user notification read states and cursor-paginated audit with date/action filters                                         |
+| Documents and reports | Protected PDF/photo downloads outside project snapshots, BOQ progress evidence, CSV registers, ledger exports and print styles                                                                                                         |
+| Navigation            | Global Ctrl/Cmd+K record/page search, direct record links, remembered project selection and a contractor portal restricted to assigned records                                                                                         |
+
+All financial writes are validated in serializable transactions. Store issues, approved wages, certified contractor work and approved equipment logs post sourced cost entries once; returns post reversals. Approval actions preserve decision notes. Payment records describe externally settled funds; the app does not send money to banks.
+
+Existing quick-entry screens remain available alongside the advanced workflows. Daily/weekly stock operations and older project records continue to contribute to shared cost reports. The homepage now opens the advanced control room; the earlier dashboard is available at `/overview`.
 
 ## Verification
 
 ```powershell
-npm run typecheck
-npm test
-npm run build
-npm audit
-npx playwright install chromium
-# Keep npm run dev running in a separate terminal:
-npm run test:e2e
+npm run verify --prefix backend
+npm audit --prefix backend
+npm audit --prefix frontend
+npm exec --prefix frontend -- playwright install chromium
+npm run test:e2e --prefix frontend
 ```
 
-PostgreSQL integration tests create and remove isolated temporary company data. They cover concurrent issues and ledger posting, returns, transfers, invoice uniqueness, bill quantities and deduction math, approval segregation, attendance uniqueness and bulk rollback, wages/OT, budget revisions, retention, progress evidence and project/contractor isolation. Database tests skip when `DATABASE_URL` is absent; CI supplies it.
+`verify` checks both TypeScript applications, runs PostgreSQL integration tests and builds both applications. Playwright starts the production API and frontend itself, then stops them. It expects the seed and a completed build. Screenshots/traces are in `frontend/artifacts/` and `frontend/test-results/`. Browser tests create uniquely named demonstration records; integration tests create and remove separate temporary company/project data.
 
-Playwright verifies desktop routes, rendered text sizes, form submission/search, CSV download and mobile contractor access. It expects the development seed and creates a uniquely named test material. Screenshots and failure traces go to ignored `artifacts/` and `test-results/`. GitHub Actions runs builds, database tests, audit and browser checks.
+The backend suite covers concurrent delivery and stock issues, rollback of multi-line operations, returns, bills/deductions, independent approvals, quantity reservations, partial settlements, retention, payroll bases, certified piecework, task cycles/float, frozen schedule baselines, budget revisions, stale edits, RFI answers and project/contractor access. Database integration tests are skipped if DATABASE_URL is absent; use backend/.env or supply the variable when running the full suite.
 
-## Implementation choices
+## Infrastructure and boundaries
 
-See [architecture](./docs/architecture.md) and [deployment](./docs/deployment.md).
+See [deployment](docs/deployment.md), [architecture](docs/architecture.md), the [original specification](Project_spec.md) and the [frontend guide](../frontend/README.md).
 
-This is a local application and production build; no public deployment has been made. Email/SMS providers and S3 are not configured: scheduled reminders appear in project activity. Documents/photos are validated data URLs stored in PostgreSQL (4 MB documents, 2 MB photos); object storage is a future scaling step. Data refreshes on navigation, mutation or the refresh button; optional Socket.IO is not enabled.
+To keep the root strictly limited to two folders, the GitHub Actions workflow is stored as a **template** at `backend/ci/workflows/ci.yml`. GitHub does not automatically execute nested workflow templates. Local verification remains executable with `npm run verify --prefix backend`; automatic GitHub Actions would require a root `.github/workflows` directory, which is intentionally absent under the requested layout.
 
-The initial seed includes `OPENING_BALANCE` ledger sources for historical costs and imported baseline progress without photos. New progress records enforce photo evidence. Financial records are append-only through the API; administrative database credentials still control database rows.
+Daily 08:00 Asia/Dhaka BullMQ digests record variance, overdue and retention reminders; monthly payroll drafts await Accounts approval. Redis provides optional BOQ/stock caches. No external email/SMS, S3, bank or public hosting account has been connected. Files currently live in PostgreSQL as validated PDF/image data URLs: 4 MB documents and 2 MB photos. The authenticated file endpoint streams them without putting file bodies into every project snapshot.
 
-## Commit dates
+The specification's relational stock/ledger models coexist with project-scoped JSON domain aggregates, validated by strict schemas and transactional reference checks. There are no financial delete endpoints. Monetary transaction values remain bounded by signed integer paisa limits; migrate ledger and stock cost fields to BigInt before supporting individual transactions above roughly BDT 20 million. Monthly payroll prorates recorded paid attendance by calendar days, rather than assuming paid weekends. S-curves use actual posting dates and do not invent historical earned-value measurements.
 
-Implementation took place in November 2026. At the owner's request, the **60 implementation commits** use Git author/committer dates spread over **1–30 September 2026**, attributed to `amitavrchy`. These are metadata dates, not a claim that development occurred in September. The original scaffold commit is preserved.
+The original 60 delivery commits retain owner-requested September 2026 metadata dates. Subsequent upgrades are separate commits. Development occurred in November 2026; metadata dates are not a development-time claim.

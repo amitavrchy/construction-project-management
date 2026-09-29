@@ -1,31 +1,42 @@
-﻿# Deployment
+# Deployment
 
-Use Node.js 24, PostgreSQL 17 and Redis 7. Configure values from `.env.example`, strong secrets and an HTTPS public `APP_URL`. Set `CORS_ORIGINS` to the browser origin. Set `API_URL` before the frontend build if its internal API address differs from localhost:4000.
+The frontend and backend are independent npm applications. There is no root package manifest or workspace installation. Use Node.js 24, PostgreSQL 17 and Redis 7.
 
-```text
-npm ci
-npm run db:generate
-npm run db:migrate
-npm run build
-npm run start -w backend
-npm run start -w frontend
-```
+## Node services
 
-Run the last two commands as separate supervised services. Put an HTTPS reverse proxy in front of port 3000. Production Secure cookies intentionally do not work over plain HTTP. Do not expose databases publicly. Back up PostgreSQL and test restores.
-
-Seeding is for initial evaluation, not upgrades. If using seeded accounts, change every initial password and remove unnecessary evaluation users. Keep `.env` outside version control and Docker build contexts. Omit `REDIS_URL` only when intentionally disabling scheduled work.
-
-## Docker
-
-The Dockerfile provides `api` and `web` targets; the web build embeds its internal API rewrite URL.
+From the repository root:
 
 ```text
-docker compose -f compose.yaml -f compose.production.yaml build
-docker compose -f compose.yaml -f compose.production.yaml up -d postgres redis
-docker compose -f compose.yaml -f compose.production.yaml run --rm api npm run db:migrate
-docker compose -f compose.yaml -f compose.production.yaml up -d api web
+npm ci --prefix backend
+npm ci --prefix frontend
+npm run db:generate --prefix backend
+npm run db:migrate --prefix backend
+npm run build --prefix backend
+npm run build --prefix frontend
+npm run start --prefix backend
+npm run start --prefix frontend
 ```
 
-Set `POSTGRES_PASSWORD`, `JWT_SECRET` and `APP_URL` first. Changing a password environment variable on an existing PostgreSQL volume does not rotate the actual database password. The API stays on the internal network; web binds localhost:3000 for an HTTPS proxy. Migrate before starting new code.
+Run the last two commands as separate supervised services. Configure `backend/.env` from `backend/.env.example` or supply environment variables. The frontend uses `API_URL` at build time for the internal API proxy. Set HTTPS public `APP_URL`, matching `CORS_ORIGINS`, a strong JWT secret and database credentials. Production API cookies require HTTPS. Put a reverse proxy in front of the web server; do not expose PostgreSQL/Redis publicly.
 
-Run type checking, integration tests, builds, audit and browser checks for each release. Verify thresholds, OT multiplier, PM→Accounts approval, uploads, downloads and the Dhaka job schedule. Documents/photos currently live in PostgreSQL, so database backups include files. Larger installations should use signed object-storage uploads and malware scanning. Email/SMS and bank payment providers are not connected.
+## Containers
+
+Both Dockerfiles use the repository root as build context. Dockerfile-specific ignore files exclude environment secrets, dependencies and build output.
+
+```text
+docker build -f backend/Dockerfile -t sitecraft-api .
+docker build -f frontend/Dockerfile -t sitecraft-web .
+```
+
+For Compose, set `POSTGRES_PASSWORD`, `JWT_SECRET` and `APP_URL` in backend/.env or the process environment, then run:
+
+```text
+docker compose -f backend/compose.yaml -f backend/compose.production.yaml build
+docker compose -f backend/compose.yaml -f backend/compose.production.yaml up -d postgres redis
+docker compose -f backend/compose.yaml -f backend/compose.production.yaml run --rm api npm run db:migrate
+docker compose -f backend/compose.yaml -f backend/compose.production.yaml up -d api web
+```
+
+The explicit Compose project name preserves the existing local PostgreSQL/Redis volumes after the folder move. Changing an environment password does not rotate an existing PostgreSQL role password. Run migrations before new application code. Test PostgreSQL backups/restores; file bodies currently live in the database too.
+
+Run `npm run verify --prefix backend`, both package audits and `npm run test:e2e --prefix frontend` before release. The GitHub Actions template lives under backend/ci; it cannot run automatically while the root is limited to frontend/backend. Provider credentials for email, SMS, object storage or bank settlement are not configured. Production installations should add shared login rate limits, restricted database roles and object storage according to their scale and requirements.

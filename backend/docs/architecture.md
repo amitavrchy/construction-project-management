@@ -1,56 +1,38 @@
-﻿# Architecture
+# Architecture and invariants
 
-Relational Prisma models hold companies, users, projects, sites, memberships, stock, ledger and audit. The `Record` model holds project-scoped domain aggregates with strict Zod payload validation, unique `(projectId, kind, key)` references and indexed states.
+Relational Prisma models hold companies, users, projects, sites, memberships, stock, immutable API cost entries and audits. `Record` stores project-scoped domain aggregates, strict Zod payloads, unique project/kind/reference keys, status and revision numbers. JSON references are validated transactionally rather than enforced as database foreign keys; direct database mutation is an administrative capability, not an application API.
 
-This deliberately differs from the specification's draft of one table per aggregate. Inventory and ledger retain transactional invariants; JSON domain references are validated in the API rather than database foreign keys. The initial workflow treats each budget record as a versioned cost head and each receipt/requisition/work order/bill as a single line. Create multiple records for multiple materials or BOQ items. Normalize line tables before large multi-line imports or enterprise analytics.
+## Advanced transactions
 
-Currency is integer BDT paisa; quantities have three decimal places. Individual monetary results must fit signed 32-bit paisa (approximately BDT 21.47 million per posted value). Larger individual transactions require migrating money fields to BigInt and updating JSON serialization.
+Multi-line purchase orders, material requests, deliveries, batch issues, batch returns, contracts, bills, budgets and schedule snapshots are durable aggregates. A failure on any inventory or ledger line rolls back the entire operation. Invoice references are checked across old GRNs and advanced deliveries. Interactive project snapshots use Repeatable Read for coherent financial reporting. Material request valuation uses current site stock costs; changed approval thresholds or higher valuations require reauthorization before dispatch. Transactions run at Serializable isolation with bounded retry on serialization conflicts. Each cost ledger source is unique.
 
-## Transaction rules
+Contract packages reserve approved BOQ scope. Non-rejected draft/submitted bills reserve remaining contract quantities, while preserving previously measured and cumulative quantities. Accounts certification posts gross cost per cost code once. Net payable applies retention, withholding, advance recovery and penalties. Payment records cannot exceed outstanding net; retention needs a fully paid bill and an expired defects period, and cannot release twice. Payments never post the project cost again.
 
-- GRN updates stock and weighted moving average together; supplier/invoice record keys prevent duplicates within a project.
-- Issues check approved remaining requisition quantity and stock, decrement inventory, update partial/full issue state and insert a ledger debit in one serializable transaction.
-- Returns cannot exceed original issues and post reversal entries at original issue cost. Transfers hold stock in transit until destination receipt.
-- Non-rejected bills reserve ordered quantity, preventing simultaneous overbilling. Accounts approval posts gross cost once; retention/tax affect payable, not project cost.
-- Wage runs snapshot rate breakdowns, freeze their attendance period and block overlaps. Approval posts cost once; payment does not double-post.
-- Approved budget revisions preserve the source. Draft edits record amount differences; approval supersedes the previous cost head.
-- Serializable conflicts retry up to four times. Bulk attendance rolls back entirely on duplicates or invalid rows.
+Budget releases contain all cost heads and differences from their prior approved version. An approval supersedes the former baseline and old approved head budgets. Concurrent stale revisions cannot supersede a newer approved budget. Task edits validate hierarchy and dependency cycles. Approved schedule snapshots freeze dates and cost weights; live physical completion drives EV against these weights. Missing approved snapshots are explicitly labeled live planning estimates. PV follows calendar-day baseline dates; actuals follow ledger posting dates. CPM uses finish-to-start calendar-day durations; baseline overlaps and project-window overruns are displayed.
 
-## Authentication and access
+Daily wages use recorded days plus OT; hourly wages use eight-hour base days and half-day fractions; monthly wages prorate paid attendance against each month's calendar days. Contract-paid workers require independently approved measured piecework; payroll uses each work log's snapshotted cost. Payroll periods block later attendance/work logs and overlapping wage runs. Calculated wage breakdowns retain their rates and source totals.
 
-Eight-hour HS256 sessions use HttpOnly, SameSite=Lax cookies; production requires HTTPS for Secure cookies. Mutation Origins must match `CORS_ORIGINS` when supplied. Every request verifies the user, company and project membership before role permissions. Contractor snapshots omit stock, ledger and audit and expose only assigned records.
+## Security and collaboration
 
-PM and Accounts approvals require separate roles/people. Originators cannot approve their own financial records. Login attempt limits apply per API process; multi-replica deployments should use a shared gateway/Redis limiter and deliberate trusted-proxy configuration. There is no public registration or email password recovery; admins provision accounts.
+Every action checks current user activity, company ownership and project membership before role permission. Contractors see only assigned orders, bills and payment records. Session cookies are HttpOnly and SameSite=Lax; production requires Secure cookies over HTTPS. Supplied mutation Origins must match configured origins. Login attempt limits are per process; use a shared limiter when scaling replicas.
 
-## REST API
+Advanced edits and decisions include expectedVersion. Stale clients receive conflict errors, rather than overwriting another person's work. Approval thresholds determine PM versus company authorization; Accounts remains a separate stage. Originators cannot approve their own financial records. RFI answers require the assignee or a manager. Comments, decisions, before/after changes and notification read states persist in the project. Audit reads have project scoping, cursor pagination and date/action filters. Files use a protected project endpoint and private/no-store caching; snapshot JSON omits image/PDF bodies.
 
-All routes start with `/api`. JSON writes use same-origin session cookies. CSV endpoints return attachment downloads. Validation errors return `{ message, statusCode }`.
+## Routes
 
-| Route                                                  | Purpose                                                      |
-| ------------------------------------------------------ | ------------------------------------------------------------ |
-| `GET /health`                                          | Process readiness                                            |
-| `POST /auth/login`, `/auth/logout`, `/auth/password`   | Session/password actions                                     |
-| `GET /auth/me`                                         | Current user without password hash                           |
-| `GET/POST /projects`                                   | Assigned projects / admin creation                           |
-| `GET /projects/:id`                                    | Scoped project snapshot                                      |
-| `PATCH /projects/:id/status`                           | Guarded lifecycle transition                                 |
-| `POST /projects/:id/sites`                             | Add site                                                     |
-| `POST /projects/:id/records/:kind`                     | Create validated domain record                               |
-| `POST /projects/:id/records/:recordId/transition`      | Submit/approve/reject/pay/receive                            |
-| `POST /projects/:id/attendance/bulk`                   | Atomic 1–200 muster rows                                     |
-| `POST /projects/:id/budgets/:recordId/revise`          | Copy approved budget into draft                              |
-| `PATCH /projects/:id/budgets/:recordId`                | Edit draft and calculate diff                                |
-| `POST /projects/:id/bills/:recordId/release-retention` | Eligible retention settlement                                |
-| `GET /projects/:id/boq-tree`                           | Cost-code BOQ tree, 60-second cache                          |
-| `GET /projects/:id/stock-snapshot`                     | 10-second stock cache                                        |
-| `GET /projects/:id/reports/:report`                    | CSV: budget-vs-actual, material-register, attendance, ledger |
-| `GET/POST /team`                                       | Company directory / provisioning                             |
-| `POST /team/:userId/memberships`                       | Assign existing member to project                            |
+Existing `/api/auth`, `/api/projects`, quick-entry `/records`, reports and team routes remain compatible. Catalog updates use `PATCH /projects/:id/records/:recordId` with an expected version. Files use `GET /projects/:id/files/:recordId`.
 
-There are no ledger edit/delete endpoints. Corrections require explicit reversals. Payment states record external settlement; the application does not send funds to banks.
+| Advanced route under `/api/projects/:projectId/advanced` | Purpose                                                      |
+| -------------------------------------------------------- | ------------------------------------------------------------ |
+| `POST /records/:kind`                                    | Validated aggregate creation                                 |
+| `PATCH /records/:id`                                     | Version-checked draft/operational edits                      |
+| `POST /records/:id/transition`                           | Guarded submission, approval or operational state change     |
+| `GET /analytics`                                         | EVM, budget/costs, trajectory, CPM, risk and cash indicators |
+| `GET /people`                                            | Active project people for owner/assignee fields              |
+| `GET /audit`                                             | Cursor-paginated audit, optional action/from/to filters      |
+| `GET /exports/:kind`                                     | Safe CSV register export                                     |
+| `POST /notifications/:id/read`                           | Per-user notification acknowledgement                        |
 
-## Jobs and cache
+BullMQ runs daily digests at 08:00 Asia/Dhaka and prior-month payroll preparation on the first day. Cache endpoints remain optional and degrade to PostgreSQL when Redis reads fail; durable jobs require Redis. No automatic bank payment, external email/SMS delivery or S3 connection is configured.
 
-BullMQ runs daily at 08:00 Asia/Dhaka. Audit digests contain variance alerts, overdue requisitions and retention reminders. On the first day of each month, sites with prior-month attendance and no overlapping run receive a calculated payroll draft awaiting Accounts approval. Stable scheduler IDs survive restarts.
-
-Redis cache keys include project IDs and authorization runs before reads. The interactive snapshot reads PostgreSQL directly to reflect successful writes immediately; optional BOQ/stock endpoints have short TTLs. Cache errors fall back to PostgreSQL; background jobs require Redis.
+Money is integer BDT paisa; stock quantities have three decimal places. Monetary results are checked before storage; current signed integer stock/ledger fields require a BigInt migration for individual values above roughly BDT 20 million. JSON aggregates should be normalized into dedicated line tables before large-scale enterprise imports or analytics workloads. General file storage currently caps documents at 4 MB and photos at 2 MB.

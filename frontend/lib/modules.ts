@@ -23,7 +23,7 @@ export const navigation = [
   {
     label: "WORKSPACE",
     items: [
-      ["dashboard", "Overview", "LayoutDashboard"],
+      ["overview", "Site overview", "LayoutDashboard"],
       ["projects", "Projects", "Building2"],
     ],
   },

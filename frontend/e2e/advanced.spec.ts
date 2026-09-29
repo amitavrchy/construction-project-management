@@ -10,7 +10,7 @@ test("advanced registers planning analytics deep search and multi-line procureme
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in to workspace" }).click();
   await expect(
-    page.getByRole("heading", { name: /Good to see you/ }),
+    page.getByRole("heading", { name: "Project control room" }),
   ).toBeVisible();
   await page.goto("/control");
   await expect(

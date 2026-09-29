@@ -10,6 +10,10 @@ test("desktop workflows render, save, search and export with accessible typograp
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in to workspace" }).click();
   await expect(
+    page.getByRole("heading", { name: "Project control room" }),
+  ).toBeVisible();
+  await page.goto("/overview");
+  await expect(
     page.getByRole("heading", { name: /Good to see you/ }),
   ).toBeVisible();
   await expect(

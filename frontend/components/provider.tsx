@@ -45,7 +45,13 @@ export function Provider({ children }: { children: ReactNode }) {
       .then(async (me) => {
         setUser(me);
         const list = await loadProjects();
-        select(list[0]?.id || "");
+        select(
+          list.find(
+            (p) => p.id === localStorage.getItem(`sitecraft-project:${me.id}`),
+          )?.id ||
+            list[0]?.id ||
+            "",
+        );
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -82,7 +88,13 @@ export function Provider({ children }: { children: ReactNode }) {
     const me = await api<User>("auth/login", "POST", { email, password });
     setUser(me);
     const list = await loadProjects();
-    select(list[0]?.id || "");
+    select(
+      list.find(
+        (p) => p.id === localStorage.getItem(`sitecraft-project:${me.id}`),
+      )?.id ||
+        list[0]?.id ||
+        "",
+    );
   }
   async function logout() {
     await api("auth/logout", "POST");
@@ -107,7 +119,10 @@ export function Provider({ children }: { children: ReactNode }) {
         projectId,
         loading,
         error,
-        setProjectId: select,
+        setProjectId: (id: string) => {
+          select(id);
+          if (user) localStorage.setItem(`sitecraft-project:${user.id}`, id);
+        },
         refresh,
         login,
         logout,
