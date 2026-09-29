@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Download, ShieldAlert } from "lucide-react";
 import { api } from "../../lib/api";
 import { Data } from "../../lib/types";
@@ -12,10 +13,16 @@ import { Approvals } from "./approvals";
 import { ActivityLog } from "./activity";
 export function AdvancedPage({ section }: { section: string }) {
   const { snapshot: s, projectId } = useWorkspace();
+  const params = useSearchParams(),
+    requested = params.get("register");
   const [people, setPeople] = useState<Data[]>([]),
     [analytics, setAnalytics] = useState<Data | null>(null),
     [error, setError] = useState(""),
     [tab, setTab] = useState(sections[section]?.modules[0] || "");
+  useEffect(() => {
+    if (requested && sections[section]?.modules.includes(requested))
+      setTab(requested);
+  }, [requested, section]);
   useEffect(() => {
     let current = true;
     if (!s || s.role === "CONTRACTOR") return;

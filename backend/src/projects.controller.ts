@@ -9,12 +9,14 @@ import {
   Res,
   Inject,
   ForbiddenException,
+  NotFoundException,
 } from "@nestjs/common";
 import type { Response } from "express";
 import { z } from "zod";
 import { ProjectsService } from "./projects.service";
 import { budgetReport, csv } from "./reports";
 import { projectTransitions } from "./domain/states";
+import { Data } from "./domain/context";
 @Controller("projects")
 export class ProjectsController {
   constructor(@Inject(ProjectsService) private service: ProjectsService) {}
@@ -26,6 +28,36 @@ export class ProjectsController {
   }
   @Get(":id") snapshot(@Req() req: any, @Param("id") id: string) {
     return this.service.snapshot(req.actor, id);
+  }
+  @Get(":id/files/:recordId") async file(
+    @Req() req: any,
+    @Param("id") id: string,
+    @Param("recordId") recordId: string,
+    @Res() res: Response,
+  ) {
+    const actor = await this.service.scope(req.actor, id);
+    if (actor.role === "CONTRACTOR") throw new ForbiddenException();
+    const record = await this.service.db.record.findFirst({
+      where: {
+        id: recordId,
+        projectId: id,
+        kind: { in: ["document", "progress"] },
+      },
+    });
+    const d = record?.data as Data | undefined;
+    const raw = record?.kind === "document" ? d?.content : d?.photo;
+    const match =
+      typeof raw === "string"
+        ? /^data:(application\/pdf|image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(
+            raw,
+          )
+        : null;
+    if (!match) throw new NotFoundException("File was not found");
+    res.setHeader("Cache-Control", "private, no-store");
+    if (record?.kind === "document")
+      res.attachment(d?.fileName || "document.pdf");
+    res.type(match[1]);
+    res.send(Buffer.from(match[2], "base64"));
   }
   @Get(":id/boq-tree") boqTree(@Req() req: any, @Param("id") id: string) {
     return this.service.boqTree(req.actor, id);
@@ -46,6 +78,14 @@ export class ProjectsController {
   ) {
     return this.service.create(req.actor, id, kind, data);
   }
+  @Patch(":id/records/:recordId") editCatalog(
+    @Req() req: any,
+    @Param("id") id: string,
+    @Param("recordId") recordId: string,
+    @Body() data: unknown,
+  ) {
+    return this.service.editCatalog(req.actor, id, recordId, data);
+  }
   @Post(":id/attendance/bulk") bulkAttendance(
     @Req() req: any,
     @Param("id") id: string,
@@ -63,11 +103,18 @@ export class ProjectsController {
     @Param("recordId") recordId: string,
     @Body() data: unknown,
   ) {
+    const command = z
+      .object({
+        status: z.string().max(40),
+        note: z.string().max(4000).default(""),
+      })
+      .parse(data);
     return this.service.transition(
       req.actor,
       id,
       recordId,
-      z.object({ status: z.string().max(40) }).parse(data).status,
+      command.status,
+      command.note,
     );
   }
   @Post(":id/budgets/:recordId/revise") revise(

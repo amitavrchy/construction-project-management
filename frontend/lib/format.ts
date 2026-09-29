@@ -19,8 +19,11 @@ export const readableDate = (date: string) =>
     timeZone: "Asia/Dhaka",
   }).format(new Date(date));
 export const label = (value: string) =>
-  value
+  (value === value.toUpperCase() ? value.toLowerCase() : value)
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/Minor$/, "")
     .replaceAll("_", " ")
-    .replace(/^./, (c) => c.toUpperCase());
+    .replace(/^./, (c) => c.toUpperCase())
+    .replace(/\bpm\b/gi, "PM")
+    .replace(/\bboq\b/gi, "BOQ")
+    .replace(/\brfi\b/gi, "RFI");

@@ -1,5 +1,6 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Plus,
   Search,
@@ -21,6 +22,7 @@ import { BulkAttendance } from "./bulk-attendance";
 export function RecordTable({ kind }: { kind: string }) {
   const { snapshot: s, projectId, mutate } = useWorkspace();
   const config = modules[kind];
+  const requested = useSearchParams().get("record");
   const [search, setSearch] = useState(""),
     [filter, setFilter] = useState("ALL"),
     [adding, setAdding] = useState(false),
@@ -30,6 +32,12 @@ export function RecordTable({ kind }: { kind: string }) {
     [error, setError] = useState(""),
     [busy, setBusy] = useState(""),
     [page, setPage] = useState(0);
+  useEffect(() => {
+    const record = s?.records.find(
+      (r) => r.id === requested && r.kind === kind,
+    );
+    if (record) setView(record);
+  }, [requested, kind]);
   const records = s?.records.filter((r) => r.kind === kind) || [];
   const rows = useMemo(
     () =>
@@ -194,8 +202,13 @@ export function RecordTable({ kind }: { kind: string }) {
                         >
                           <Eye size={17} />
                         </button>
-                        {kind === "budget" &&
-                          r.status === "DRAFT" &&
+                        {((kind === "budget" && r.status === "DRAFT") ||
+                          [
+                            "worker",
+                            "material",
+                            "supplier",
+                            "contractor",
+                          ].includes(kind)) &&
                           canCreate(s.role, kind) && (
                             <button
                               className="text-button"
@@ -301,13 +314,28 @@ export function RecordTable({ kind }: { kind: string }) {
         </Modal>
       )}
       {editing && (
-        <Modal title="Edit draft budget" close={() => setEditing(null)}>
+        <Modal
+          title={
+            kind === "budget" ? "Edit draft budget" : `Edit ${config.singular}`
+          }
+          close={() => setEditing(null)}
+        >
           <RecordForm
             fields={config.fields}
             initial={editing.data}
             close={() => setEditing(null)}
             onSubmit={(d) =>
-              mutate(`projects/${projectId}/budgets/${editing.id}`, d, "PATCH")
+              kind === "budget"
+                ? mutate(
+                    `projects/${projectId}/budgets/${editing.id}`,
+                    d,
+                    "PATCH",
+                  )
+                : mutate(
+                    `projects/${projectId}/records/${editing.id}`,
+                    { ...d, expectedVersion: editing.version },
+                    "PATCH",
+                  )
             }
           />
         </Modal>
@@ -318,7 +346,16 @@ export function RecordTable({ kind }: { kind: string }) {
             <Status value={view.status} />
             <dl>
               {Object.entries(view.data)
-                .filter(([k]) => !["content", "photo", "breakdown"].includes(k))
+                .filter(
+                  ([k]) =>
+                    ![
+                      "content",
+                      "photo",
+                      "breakdown",
+                      "downloadUrl",
+                      "photoUrl",
+                    ].includes(k),
+                )
                 .map(([k, v]) => (
                   <div key={k}>
                     <dt>{label(k)}</dt>
@@ -326,17 +363,17 @@ export function RecordTable({ kind }: { kind: string }) {
                   </div>
                 ))}
             </dl>
-            {view.data.photo && (
+            {(view.data.photo || view.data.photoUrl) && (
               <img
                 className="evidence-photo"
-                src={view.data.photo}
+                src={view.data.photoUrl || view.data.photo}
                 alt="Site progress evidence"
               />
             )}
-            {view.data.content && (
+            {(view.data.content || view.data.downloadUrl) && (
               <a
                 className="button primary"
-                href={view.data.content}
+                href={view.data.downloadUrl || view.data.content}
                 download={view.data.fileName}
               >
                 <Download size={18} />

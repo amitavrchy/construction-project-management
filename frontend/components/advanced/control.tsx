@@ -14,6 +14,7 @@ import { Data } from "../../lib/types";
 import { money, readableDate } from "../../lib/format";
 import { useWorkspace } from "../provider";
 import { BudgetChart } from "../budget-chart";
+import { CostCurve } from "./cost-curve";
 export function ControlRoom({ analytics }: { analytics: Data | null }) {
   const { snapshot: s, projectId } = useWorkspace();
   if (!s) return null;
@@ -121,6 +122,16 @@ export function ControlRoom({ analytics }: { analytics: Data | null }) {
           </div>
         ))}
       </div>
+      <section className="panel" style={{ marginBottom: 24 }}>
+        <div className="panel-heading">
+          <div>
+            <h3>Cost trajectory</h3>
+            <p>Compare the pace of planned work with posted expenditure.</p>
+          </div>
+          <TrendingUp size={21} />
+        </div>
+        <CostCurve points={analytics.timeSeries || []} />
+      </section>
       <div className="analytics-layout">
         <section className="panel">
           <div className="panel-heading">
@@ -208,7 +219,8 @@ export function ControlRoom({ analytics }: { analytics: Data | null }) {
               <strong>{e.coverage}% of approved budget</strong>
             </span>
             <p>
-              EV and PV are computed only for planned tasks. A partial or
+              Reporting baseline: <strong>{analytics.baselineName}</strong>. EV
+              and PV are computed only for planned tasks. A partial or
               overlapping task baseline changes the meaning of project-level
               forecasts.
             </p>

@@ -82,10 +82,26 @@ export const schemas = {
       name: text,
       trade: text,
       dailyRateMinor: money,
+      payBasis: z
+        .enum(["DAILY", "HOURLY", "MONTHLY", "CONTRACT"])
+        .default("DAILY"),
+      hourlyRateMinor: money.default(0),
+      monthlyRateMinor: money.default(0),
+      unitRateMinor: money.default(0),
       phone: note,
       gang: text,
     })
-    .strict(),
+    .strict()
+    .refine(
+      (w) =>
+        w.payBasis === "DAILY" ||
+        (w.payBasis === "HOURLY"
+          ? w.hourlyRateMinor
+          : w.payBasis === "MONTHLY"
+            ? w.monthlyRateMinor
+            : w.unitRateMinor) > 0,
+      "Set a positive rate for the selected pay basis",
+    ),
   attendance: z
     .object({
       workerId: text,

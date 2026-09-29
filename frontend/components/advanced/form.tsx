@@ -66,6 +66,12 @@ export function AdvancedForm({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   function options(ref: string) {
+    if (ref === "contractworker")
+      return (
+        s?.records
+          .filter((r) => r.kind === "worker" && r.data.payBasis === "CONTRACT")
+          .map((r) => ({ value: r.id, text: r.data.name })) || []
+      );
     if (ref === "retentionbill")
       return (
         s?.records

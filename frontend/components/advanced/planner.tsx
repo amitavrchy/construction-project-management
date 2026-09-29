@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   CalendarRange,
   KanbanSquare,
@@ -24,11 +25,17 @@ export function Planner({
   analytics: Data | null;
 }) {
   const { snapshot: s, projectId, mutate } = useWorkspace();
+  const params = useSearchParams(),
+    requested = params.get("register");
   const [view, setView] = useState("timeline"),
     [adding, setAdding] = useState(false),
     [editing, setEditing] = useState<DomainRecord | null>(null),
     [error, setError] = useState(""),
     [dragged, setDragged] = useState("");
+  useEffect(() => {
+    if (requested === "schedulebaseline") setView("baselines");
+    else if (requested === "task" && params.get("record")) setView("register");
+  }, [requested, params]);
   if (!s) return null;
   const tasks = s.records.filter((r) => r.kind === "task"),
     writable = writers.task.includes(s.role);
@@ -44,7 +51,7 @@ export function Planner({
   const cpm = analytics?.criticalPath?.tasks || [];
   async function move(id: string, action: string) {
     const task = tasks.find((t) => t.id === id);
-    if (!task) return;
+    if (!task || task.status === action) return;
     try {
       await mutate(`projects/${projectId}/advanced/records/${id}/transition`, {
         action,
@@ -101,6 +108,7 @@ export function Planner({
           { id: "timeline", icon: CalendarRange, name: "Timeline" },
           { id: "board", icon: KanbanSquare, name: "Execution board" },
           { id: "register", icon: ListTree, name: "WBS register" },
+          { id: "baselines", icon: Flag, name: "Approved baselines" },
         ].map((v) => (
           <button
             role="tab"
@@ -114,6 +122,25 @@ export function Planner({
           </button>
         ))}
       </div>
+      {!!analytics?.criticalPath?.overrunDays && (
+        <div className="schedule-warning">
+          <Flag size={19} />
+          <div>
+            <strong>
+              The dependency path exceeds the project window by{" "}
+              {analytics.criticalPath.overrunDays} days.
+            </strong>
+            <p>
+              {analytics.criticalPath.baselineConflicts.length} activities have
+              baseline dates that overlap their finish-to-start predecessors.
+              Review the schedule before committing a new baseline.
+            </p>
+          </div>
+        </div>
+      )}
+      {view === "baselines" && (
+        <AdvancedRegister kind="schedulebaseline" people={people} />
+      )}
       {error && (
         <p className="form-error" role="alert">
           {error}

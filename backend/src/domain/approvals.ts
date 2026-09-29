@@ -1,8 +1,13 @@
-import { Context, getRecord, list, cost, audit } from "./context";
+import { Context, Data, getRecord, list, cost, audit } from "./context";
 import { assertTransition } from "./states";
 import { canApprove, canWrite } from "./access";
 import { movingAverage, minor } from "./money";
-export async function approve(c: Context, id: string, target: string) {
+export async function approve(
+  c: Context,
+  id: string,
+  target: string,
+  note = "",
+) {
   const r = await getRecord(c, id);
   assertTransition(r.kind, r.status, target);
   if (target === "SUBMITTED" || target === "CANCELLED") {
@@ -20,7 +25,7 @@ export async function approve(c: Context, id: string, target: string) {
     if (target === "ACCOUNTS_APPROVED" && r.data.pmApprovedBy === c.actor.id)
       throw new Error("PM and Accounts approvals must be separate people");
   }
-  let data = { ...r.data };
+  let data: Data = { ...r.data, lastDecisionNote: note };
   if (target === "APPROVED" && r.kind === "requisition") {
     const material = await getRecord(c, r.data.materialId, "material");
     const stock = await c.tx.stock.findUnique({
@@ -94,6 +99,7 @@ export async function approve(c: Context, id: string, target: string) {
   await audit(c, `${r.kind}.${target.toLowerCase()}`, id, {
     from: r.status,
     to: target,
+    note,
   });
   return result;
 }

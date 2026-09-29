@@ -97,7 +97,16 @@ export function CommandPalette() {
                 {results.map((r) => (
                   <button
                     key={r.id}
-                    onClick={() => go("/" + routeForKind(r.kind))}
+                    onClick={() =>
+                      go(
+                        "/" +
+                          routeForKind(r.kind) +
+                          "?register=" +
+                          r.kind +
+                          "&record=" +
+                          r.id,
+                      )
+                    }
                   >
                     <div>
                       <strong>

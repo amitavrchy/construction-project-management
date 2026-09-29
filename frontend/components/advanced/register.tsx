@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Plus,
   Search,
@@ -27,6 +28,7 @@ export function AdvancedRegister({
 }) {
   const { snapshot: s, projectId, user, mutate } = useWorkspace();
   const config = advancedModules[kind];
+  const requested = useSearchParams().get("record");
   const [adding, setAdding] = useState(false),
     [editing, setEditing] = useState<DomainRecord | null>(null),
     [viewId, setViewId] = useState(""),
@@ -41,6 +43,9 @@ export function AdvancedRegister({
     [note, setNote] = useState(""),
     [busy, setBusy] = useState(false),
     [comment, setComment] = useState("");
+  useEffect(() => {
+    if (requested) setViewId(requested);
+  }, [requested, kind]);
   if (!s) return null;
   const all = s.records.filter((r) => r.kind === kind);
   const records = all.filter(
@@ -361,6 +366,7 @@ export function AdvancedRegister({
                   ([k]) =>
                     ![
                       "lines",
+                      "tasks",
                       "removedHeads",
                       "dependencies",
                       "readBy",
@@ -404,6 +410,32 @@ export function AdvancedRegister({
                                 : "—"}
                         </td>
                         <td>{money(l.amountMinor || 0)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {viewed.data.tasks && (
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Frozen work item</th>
+                      <th>Baseline start</th>
+                      <th>Baseline finish</th>
+                      <th>Cost weight</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {viewed.data.tasks.map((t: Data) => (
+                      <tr key={t.id}>
+                        <td>
+                          {t.code} · {t.title}
+                        </td>
+                        <td>{readableDate(t.startsOn)}</td>
+                        <td>{readableDate(t.endsOn)}</td>
+                        <td>{money(t.budgetMinor)}</td>
                       </tr>
                     ))}
                   </tbody>

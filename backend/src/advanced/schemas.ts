@@ -27,6 +27,18 @@ const quantities = z
   .max(100)
   .refine((l) => unique(l, "lineId"), "Duplicate line");
 export const advancedSchemas = {
+  schedulebaseline: z.object({ name: text, reason: text }).strict(),
+  worklog: z
+    .object({
+      reference: text,
+      workerId: id,
+      siteId: id,
+      date,
+      quantity: qty,
+      description: text,
+      note,
+    })
+    .strict(),
   purchaseorder: z
     .object({
       reference: text,

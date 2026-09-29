@@ -99,7 +99,8 @@ export async function startJobs(db: Db) {
             if (
               !records.some(
                 (r) =>
-                  r.kind === "attendance" &&
+                  (r.kind === "attendance" ||
+                    (r.kind === "worklog" && r.status === "APPROVED")) &&
                   (r.data as any).siteId === site.id &&
                   (r.data as any).date >= periodStart &&
                   (r.data as any).date <= periodEnd,

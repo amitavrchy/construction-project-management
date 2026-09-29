@@ -145,6 +145,7 @@ export class AdvancedController {
         "payment",
         "retentionpayment",
         "budgetrelease",
+        "schedulebaseline",
         "task",
         "risk",
         "rfi",
@@ -152,6 +153,7 @@ export class AdvancedController {
         "equipment",
         "equipmentlog",
         "approvalrule",
+        "worklog",
       ].includes(kind)
     )
       throw new Error("Unknown export");

@@ -4,7 +4,7 @@ export const labor: Record<string, Module> = {
     title: "People on site",
     singular: "worker",
     subtitle: "Your workforce, trades, gangs and agreed daily rates.",
-    columns: ["name", "trade", "gang", "dailyRateMinor", "phone"],
+    columns: ["name", "trade", "gang", "payBasis", "dailyRateMinor", "phone"],
     fields: [
       { key: "name", label: "Worker name" },
       {
@@ -20,6 +20,29 @@ export const labor: Record<string, Module> = {
         ],
       },
       { key: "gang", label: "Gang / team" },
+      {
+        key: "payBasis",
+        label: "Pay basis",
+        options: ["DAILY", "HOURLY", "MONTHLY", "CONTRACT"],
+      },
+      {
+        key: "hourlyRateMinor",
+        label: "Hourly rate (BDT, hourly workers)",
+        type: "money",
+        default: 0,
+      },
+      {
+        key: "monthlyRateMinor",
+        label: "Monthly rate (BDT, calendar-day proration)",
+        type: "money",
+        default: 0,
+      },
+      {
+        key: "unitRateMinor",
+        label: "Piecework unit rate (BDT, contract workers)",
+        type: "money",
+        default: 0,
+      },
       { key: "dailyRateMinor", label: "Daily rate (BDT)", type: "money" },
       { key: "phone", label: "Phone", optional: true },
     ],

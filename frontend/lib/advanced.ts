@@ -20,6 +20,40 @@ const reference: AdvancedField = {
   label: "Reference number",
 };
 export const advancedModules: Record<string, AdvancedModule> = {
+  schedulebaseline: {
+    title: "Schedule baselines",
+    singular: "schedule baseline",
+    description:
+      "Capture the entire work plan. Approval freezes the dates and cost weights used by earned-value reporting.",
+    fields: [
+      { key: "name", label: "Baseline name" },
+      { key: "reason", label: "Baseline reason", type: "textarea" },
+    ],
+    columns: ["name", "versionNumber", "totalMinor"],
+  },
+  worklog: {
+    title: "Certified piecework",
+    singular: "piecework log",
+    description:
+      "Measure contract-paid labor, certify units and include them once in payroll.",
+    fields: [
+      reference,
+      { key: "workerId", label: "Contract-paid worker", ref: "contractworker" },
+      { key: "siteId", label: "Site", ref: "site" },
+      { key: "date", label: "Work date", type: "date" },
+      { key: "quantity", label: "Completed units", type: "number" },
+      { key: "description", label: "Work measurement", type: "textarea" },
+      note,
+    ],
+    columns: [
+      "reference",
+      "workerName",
+      "date",
+      "quantity",
+      "unitRateMinor",
+      "totalMinor",
+    ],
+  },
   batchreturn: {
     title: "Batch material returns",
     singular: "batch return",
@@ -500,7 +534,7 @@ export const sections: Record<
   "site-diary": {
     title: "Site intelligence",
     subtitle: "Daily delivery, manpower, safety and plant utilization.",
-    modules: ["dailyreport", "equipmentlog", "equipment"],
+    modules: ["dailyreport", "equipmentlog", "equipment", "worklog"],
   },
   automation: {
     title: "Approval policy",
@@ -573,8 +607,10 @@ export function advancedActions(
 }
 writers.batchreturn = ["COMPANY_ADMIN", "STORE_KEEPER"];
 writers.retentionpayment = ["ACCOUNTANT"];
+writers.worklog = ["COMPANY_ADMIN", "SITE_ENGINEER", "LABOR_SUPERVISOR"];
+writers.schedulebaseline = managers;
 export function routeForKind(kind: string) {
-  if (kind === "task") return "planning";
+  if (["task", "schedulebaseline"].includes(kind)) return "planning";
   for (const [section, config] of Object.entries(sections))
     if (config.modules.includes(kind)) return section;
   return kind;

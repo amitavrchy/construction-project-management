@@ -1,3 +1,18 @@
+.cost-curve {
+  overflow-x: auto;
+  padding: 5px 23px 10px;
+}
+.cost-curve svg {
+  display: block;
+  width: 760px;
+  max-width: none;
+  height: auto;
+  margin: auto;
+}
+.cost-curve .metric-footnote {
+  min-width: 0;
+  padding: 12px 0;
+}
 .register-heading {
   display: flex;
   justify-content: space-between;
@@ -1249,4 +1264,26 @@
   .detail-body dd {
     max-width: 60%;
   }
+}
+
+.schedule-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 17px 20px;
+  background: #fbf2df;
+  border: 1px solid #eddfb8;
+  color: #a27b2d;
+  border-radius: 9px;
+  margin: 20px 0;
+  font-size: 14px;
+}
+.schedule-warning p {
+  font-size: 14px;
+  color: #ab965f;
+  margin-top: 5px;
+  line-height: 1.7;
+}
+.schedule-warning svg {
+  margin-top: 3px;
 }

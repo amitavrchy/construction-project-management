@@ -5,6 +5,7 @@ export async function advancedContracts(
   c: Context,
   kind: string,
   d: Data,
+  id?: string,
 ): Promise<Data> {
   if (kind === "contractpackage") {
     await getRecord(c, d.contractorId, "contractor");
@@ -13,6 +14,28 @@ export async function advancedContracts(
       const boq = await getRecord(c, line.boqId, "boq");
       if (line.costCode !== boq.data.costCode)
         throw new Error("Contract cost code must match the selected BOQ item");
+      const ordered =
+        (await list(c, "contractpackage"))
+          .filter((r) => r.id !== id && r.status !== "REJECTED")
+          .reduce(
+            (n, r) =>
+              n +
+              r.data.lines
+                .filter((l: Data) => l.boqId === line.boqId)
+                .reduce((s: number, l: Data) => s + l.quantity, 0),
+            0,
+          ) +
+        (await list(c, "workorder"))
+          .filter((r) => r.data.boqId === line.boqId)
+          .reduce((n, r) => n + r.data.quantity, 0);
+      const varied = (await list(c, "variation"))
+        .filter((r) => r.status === "APPROVED" && r.data.boqId === line.boqId)
+        .reduce((n, r) => n + r.data.additionalQuantity, 0);
+      if (
+        Math.round((ordered + line.quantity) * 1000) >
+        Math.round((boq.data.quantity + varied) * 1000)
+      )
+        throw new Error("Contract packages exceed the approved BOQ quantity");
       lines.push({
         ...line,
         lineId: randomUUID(),

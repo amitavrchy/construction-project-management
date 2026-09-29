@@ -34,3 +34,9 @@ export function assertAdvancedWrite(actor: Actor, kind: string) {
 }
 advancedWriters.batchreturn = ["COMPANY_ADMIN", "STORE_KEEPER"];
 advancedWriters.retentionpayment = ["ACCOUNTANT"];
+advancedWriters.worklog = [
+  "COMPANY_ADMIN",
+  "SITE_ENGINEER",
+  "LABOR_SUPERVISOR",
+];
+advancedWriters.schedulebaseline = managers;

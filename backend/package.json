@@ -9,11 +9,12 @@
     "test": "tsx --test test/*.test.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "db:seed": "tsx prisma/seed.ts",
+    "db:seed": "tsx prisma/seed.ts && tsx prisma/seed-advanced.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "setup": "node scripts/setup.mjs",
-    "verify": "node scripts/verify.mjs"
+    "verify": "node scripts/verify.mjs",
+    "db:seed:advanced": "tsx prisma/seed-advanced.ts"
   },
   "dependencies": {
     "@nestjs/common": "^12.3.2",
@@ -36,11 +37,11 @@
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.5",
     "@types/jsonwebtoken": "^9.0.10",
-    "prisma": "6.19.3",
-    "typescript": "^5.9.3",
     "@types/node": "^24.10.0",
     "prettier": "^3.9.10",
-    "tsx": "^4.20.6"
+    "prisma": "6.19.3",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=22"

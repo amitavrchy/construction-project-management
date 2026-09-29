@@ -1,5 +1,6 @@
 import { Context, Data, getRecord, requireSite, list } from "./context";
 import { wage, minor } from "./money";
+import { workerPay } from "./payroll";
 export async function labor(c: Context, kind: string, d: Data): Promise<Data> {
   if (kind === "attendance") {
     await requireSite(c, d.siteId);
@@ -35,11 +36,22 @@ export async function labor(c: Context, kind: string, d: Data): Promise<Data> {
         r.data.date >= d.periodStart &&
         r.data.date <= d.periodEnd,
     );
-    if (!attendance.length) throw new Error("No attendance in selected period");
+    const worklogs = (await list(c, "worklog")).filter(
+      (r) =>
+        r.status === "APPROVED" &&
+        r.data.siteId === d.siteId &&
+        r.data.date >= d.periodStart &&
+        r.data.date <= d.periodEnd,
+    );
+    if (!attendance.length && !worklogs.length)
+      throw new Error(
+        "No attendance or certified piecework in selected period",
+      );
     const breakdown: Data[] = [];
     for (const worker of await list(c, "worker")) {
       const entries = attendance.filter((a) => a.data.workerId === worker.id);
-      if (!entries.length) continue;
+      const logs = worklogs.filter((r) => r.data.workerId === worker.id);
+      if (!entries.length && !logs.length) continue;
       const days = entries.reduce(
         (s, r) =>
           s +
@@ -51,18 +63,16 @@ export async function labor(c: Context, kind: string, d: Data): Promise<Data> {
         0,
       );
       const otHours = entries.reduce((s, r) => s + r.data.otHours, 0);
+      const pay = workerPay(
+        worker.data,
+        entries.map((e) => e.data),
+        logs.map((l) => l.data),
+        Number(process.env.OT_MULTIPLIER_BPS || 15000),
+      );
       breakdown.push({
         workerId: worker.id,
         name: worker.data.name,
-        days,
-        otHours,
-        rateMinor: worker.data.dailyRateMinor,
-        amountMinor: wage(
-          days,
-          worker.data.dailyRateMinor,
-          otHours,
-          Number(process.env.OT_MULTIPLIER_BPS || 15000),
-        ),
+        ...pay,
       });
     }
     return {

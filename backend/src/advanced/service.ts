@@ -24,6 +24,7 @@ import { advancedMaterials } from "./materials";
 import { advancedContracts } from "./contracts";
 import { criticalPath, earnedValue } from "./planning";
 import { budgetReport } from "../reports";
+import { advancedKey } from "./keys";
 @Injectable()
 export class AdvancedService {
   constructor(
@@ -63,7 +64,27 @@ export class AdvancedService {
   }
   private async prepare(c: Context, kind: string, d: Data, id: string) {
     d = await advancedMaterials(c, kind, d, id);
-    d = await advancedContracts(c, kind, d);
+    d = await advancedContracts(c, kind, d, id);
+    if (kind === "schedulebaseline") {
+      const tasks = await list(c, "task");
+      if (!tasks.length)
+        throw new Error(
+          "Create work items before capturing a schedule baseline",
+        );
+      const previous = (await list(c, "schedulebaseline")).find(
+        (r) => r.status === "APPROVED",
+      );
+      d = {
+        ...d,
+        previousId: previous?.id || "",
+        tasks: tasks.map((t) => ({ id: t.id, ...t.data })),
+        totalMinor: minor(tasks.reduce((n, t) => n + t.data.budgetMinor, 0)),
+        versionNumber:
+          (await c.tx.record.count({
+            where: { projectId: c.projectId, kind: "schedulebaseline" },
+          })) + 1,
+      };
+    }
     if (kind === "budgetrelease") {
       let previous: Data | undefined;
       if (d.previousId) {
@@ -119,6 +140,29 @@ export class AdvancedService {
     }
     if (kind === "rfi") await this.validateOwner(c, d.assignedTo);
     if (kind === "dailyreport") await requireSite(c, d.siteId);
+    if (kind === "worklog") {
+      await requireSite(c, d.siteId);
+      const worker = await getRecord(c, d.workerId, "worker");
+      if (worker.data.payBasis !== "CONTRACT")
+        throw new Error(
+          "Piecework logs require a worker with contract pay basis",
+        );
+      if (
+        (await list(c, "wage")).some(
+          (r) =>
+            r.data.siteId === d.siteId &&
+            d.date >= r.data.periodStart &&
+            d.date <= r.data.periodEnd,
+        )
+      )
+        throw new Error("This payroll period is already locked");
+      d = {
+        ...d,
+        workerName: worker.data.name,
+        unitRateMinor: worker.data.unitRateMinor,
+        totalMinor: minor(d.quantity * worker.data.unitRateMinor),
+      };
+    }
     if (kind === "equipmentlog") {
       await requireSite(c, d.siteId);
       const asset = await getRecord(c, d.equipmentId, "equipment");
@@ -150,18 +194,7 @@ export class AdvancedService {
         throw new Error("New tasks must start at zero progress");
       const id = randomUUID(),
         data = await this.prepare(c, kind, parsed, id);
-      const key =
-        kind === "delivery"
-          ? `${data.supplierId}:${data.invoiceNo.toLowerCase()}`
-          : kind === "dailyreport"
-            ? `${data.siteId}:${data.date}`
-            : kind === "measurementbill"
-              ? `${data.contractpackageId}:${data.reference.toLowerCase()}`
-              : kind === "approvalrule"
-                ? `${data.kind}:${data.thresholdMinor}`
-                : data.reference?.toLowerCase() ||
-                  data.code?.toLowerCase() ||
-                  id;
+      const key = advancedKey(kind, data, id);
       const status =
         kind === "task"
           ? "BACKLOG"
@@ -207,19 +240,15 @@ export class AdvancedService {
         throw new Error("Reopen the record before editing");
       const parsed = parseAdvanced(r.kind, body);
       const data = await this.prepare(c, r.kind, parsed, id);
-      if (r.kind === "budgetrelease") data.versionNumber = r.data.versionNumber;
+      if (["budgetrelease", "schedulebaseline"].includes(r.kind))
+        data.versionNumber = r.data.versionNumber;
       if (r.kind === "task" && r.status === "BACKLOG" && data.percent > 0)
         throw new Error("Move task to In progress before entering completion");
       const result = await c.tx.record.update({
         where: { id },
         data: {
           data,
-          key:
-            r.kind === "task" || r.kind === "equipment"
-              ? data.code.toLowerCase()
-              : r.kind === "approvalrule"
-                ? `${data.kind}:${data.thresholdMinor}`
-                : r.key,
+          key: advancedKey(r.kind, data, id),
           version: { increment: 1 },
         },
       });
@@ -267,8 +296,10 @@ export class AdvancedService {
           "contractpackage",
           "measurementbill",
           "budgetrelease",
+          "schedulebaseline",
           "equipmentlog",
           "dailyreport",
+          "worklog",
           "task",
           "risk",
           "rfi",
@@ -396,6 +427,17 @@ export class AdvancedService {
         }
         if (target === "APPROVED" && r.kind === "equipmentlog")
           await cost(c, "EQUIPMENT_LOG", id, data.totalMinor, data.costCode);
+        if (
+          target === "APPROVED" &&
+          r.kind === "worklog" &&
+          (await list(c, "wage")).some(
+            (w) =>
+              w.data.siteId === data.siteId &&
+              data.date >= w.data.periodStart &&
+              data.date <= w.data.periodEnd,
+          )
+        )
+          throw new Error("Payroll already locked this work period");
         if (target === "APPROVED" && r.kind === "budgetrelease") {
           const current = (await list(c, "budgetrelease")).filter(
             (b) => b.status === "APPROVED",
@@ -413,6 +455,20 @@ export class AdvancedService {
               data: { status: "SUPERSEDED", version: { increment: 1 } },
             });
         }
+      }
+      if (target === "APPROVED" && r.kind === "schedulebaseline") {
+        const current = (await list(c, "schedulebaseline")).filter(
+          (b) => b.status === "APPROVED",
+        );
+        if (current.length && current[0].id !== data.previousId)
+          throw new ConflictException(
+            "Schedule baseline changed; capture a new baseline",
+          );
+        for (const b of current)
+          await c.tx.record.update({
+            where: { id: b.id },
+            data: { status: "SUPERSEDED", version: { increment: 1 } },
+          });
       }
       data.lastDecisionNote = command.note;
       const result = await c.tx.record.update({
@@ -447,17 +503,85 @@ export class AdvancedService {
     if (s.role === "CONTRACTOR") throw new ForbiddenException();
     const rows = s.records.map((r) => ({ ...r, data: r.data as Data }));
     const tasks = rows.filter((r) => r.kind === "task");
+    const baseline = rows.find(
+      (r) => r.kind === "schedulebaseline" && r.status === "APPROVED",
+    );
+    const costTasks = baseline
+      ? baseline.data.tasks.map((b: Data) => ({
+          id: b.id,
+          status: tasks.find((t) => t.id === b.id)?.status || "BACKLOG",
+          data: {
+            ...b,
+            percent: tasks.find((t) => t.id === b.id)?.data.percent || 0,
+          },
+        }))
+      : tasks;
+    const network = criticalPath(tasks),
+      baselineWindowDays =
+        Math.round(
+          (Date.parse(s.project.endsOn) - Date.parse(s.project.startsOn)) /
+            86400000,
+        ) + 1;
     const costs = budgetReport(rows, s.ledger);
     const budget = costs.reduce((n, r) => n + r.budget, 0),
       actual = s.ledger.reduce((n, r) => n + r.amountMinor, 0);
     const today = new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Dhaka",
     }).format(new Date());
+    const start = new Date(s.project.startsOn.slice(0, 7) + "-01T00:00:00Z");
+    const timeSeries = [];
+    for (let index = 0; index < 120; index++) {
+      const month = new Date(
+        Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + index, 1),
+      );
+      if (month.toISOString().slice(0, 10) > s.project.endsOn) break;
+      let date = new Date(
+        Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 0),
+      )
+        .toISOString()
+        .slice(0, 10);
+      const monthStart = month.toISOString().slice(0, 10);
+      if (date > today && monthStart <= today) date = today;
+      timeSeries.push({
+        date,
+        label: new Intl.DateTimeFormat("en-GB", {
+          month: "short",
+          year: "2-digit",
+          timeZone: "UTC",
+        }).format(month),
+        planned: earnedValue(costTasks, budget, actual, date).planned,
+        actual:
+          monthStart > today
+            ? null
+            : s.ledger
+                .filter(
+                  (l) =>
+                    new Intl.DateTimeFormat("en-CA", {
+                      timeZone: "Asia/Dhaka",
+                    }).format(l.createdAt) <= date,
+                )
+                .reduce((n, l) => n + l.amountMinor, 0),
+      });
+    }
     return {
       asOf: today,
-      criticalPath: criticalPath(tasks),
-      evm: earnedValue(tasks, budget, actual, today),
+      criticalPath: {
+        ...network,
+        baselineWindowDays,
+        overrunDays: Math.max(0, network.durationDays - baselineWindowDays),
+        baselineConflicts: tasks
+          .filter((t) =>
+            (t.data.dependencies || []).some(
+              (id: string) =>
+                tasks.find((p) => p.id === id)!.data.endsOn >= t.data.startsOn,
+            ),
+          )
+          .map((t) => t.id),
+      },
+      baselineName: baseline?.data.name || "Live plan · baseline not approved",
+      evm: earnedValue(costTasks, budget, actual, today),
       costs,
+      timeSeries,
       risks: rows
         .filter((r) => r.kind === "risk" && r.status !== "CLOSED")
         .sort((a, b) => b.data.score - a.data.score),
@@ -471,13 +595,31 @@ export class AdvancedService {
       payable: rows
         .filter(
           (r) =>
-            r.kind === "measurementbill" &&
+            ["measurementbill", "bill"].includes(r.kind) &&
             ["ACCOUNTS_APPROVED", "PARTIALLY_PAID"].includes(r.status),
         )
         .reduce((n, r) => n + r.data.net - (r.data.paidMinor || 0), 0),
       cashPaid: rows
-        .filter((r) => r.kind === "payment")
-        .reduce((n, r) => n + r.data.amountMinor, 0),
+        .filter(
+          (r) =>
+            ["payment", "retentionpayment"].includes(r.kind) ||
+            (r.kind === "bill" && r.status === "PAID") ||
+            (r.kind === "wage" && r.status === "PAID"),
+        )
+        .reduce(
+          (n, r) => n + (r.kind === "bill" ? r.data.net : r.data.amountMinor),
+          0,
+        ),
+      retained: rows
+        .filter(
+          (r) =>
+            ["measurementbill", "bill"].includes(r.kind) &&
+            ["ACCOUNTS_APPROVED", "PARTIALLY_PAID", "PAID"].includes(
+              r.status,
+            ) &&
+            !r.data.retentionReleasedOn,
+        )
+        .reduce((n, r) => n + r.data.retention, 0),
     };
   }
 }

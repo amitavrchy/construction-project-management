@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { Db } from "./db";
 import { Actor, canWrite } from "./domain/access";
 import { projectSchema, parseRecord } from "./domain/schemas";
-import { Context, audit, getRecord } from "./domain/context";
+import { Context, Data, audit, getRecord } from "./domain/context";
 import { inventory } from "./domain/inventory";
 import { labor } from "./domain/labor";
 import { contracts } from "./domain/contracts";
@@ -102,6 +102,41 @@ export class ProjectsService {
             d.contractorId === actor.contractorId)
         );
       });
+    records = records.map((r) => {
+      const data = r.data as Data;
+      if (r.kind === "worker")
+        return {
+          ...r,
+          data: {
+            payBasis: "DAILY",
+            hourlyRateMinor: 0,
+            monthlyRateMinor: 0,
+            unitRateMinor: 0,
+            ...data,
+          },
+        };
+      if (r.kind === "document") {
+        const { content, ...metadata } = data;
+        return {
+          ...r,
+          data: {
+            ...metadata,
+            downloadUrl: `/api/projects/${projectId}/files/${r.id}`,
+          },
+        };
+      }
+      if (r.kind === "progress" && data.photo) {
+        const { photo, ...metadata } = data;
+        return {
+          ...r,
+          data: {
+            ...metadata,
+            photoUrl: `/api/projects/${projectId}/files/${r.id}`,
+          },
+        };
+      }
+      return r;
+    });
     return {
       project,
       role: scoped.role,
@@ -202,6 +237,7 @@ export class ProjectsService {
     projectId: string,
     id: string,
     status: string,
+    note = "",
   ) {
     actor = await this.scope(actor, projectId);
     return this.db.atomic(async (tx) => {
@@ -210,7 +246,7 @@ export class ProjectsService {
       });
       if (["COMPLETED", "CANCELLED"].includes(p.status))
         throw new Error("This project is closed");
-      return approve({ tx, projectId, actor }, id, status);
+      return approve({ tx, projectId, actor }, id, status, note);
     });
   }
   async bulkAttendance(actor: Actor, projectId: string, inputs: unknown[]) {
@@ -288,6 +324,53 @@ export class ProjectsService {
         previousAmountMinor: r.data.amountMinor,
         amountMinor: parsed.amountMinor,
       });
+      return result;
+    });
+  }
+  async editCatalog(actor: Actor, projectId: string, id: string, input: any) {
+    actor = await this.scope(actor, projectId);
+    const { expectedVersion, ...payload } = input;
+    return this.db.atomic(async (tx) => {
+      const c = { tx, projectId, actor };
+      const r = await getRecord(c, id);
+      if (!["worker", "material", "supplier", "contractor"].includes(r.kind))
+        throw new Error("Only catalog records are editable here");
+      canWrite(actor, r.kind);
+      if (r.version !== expectedVersion)
+        throw new ForbiddenException(
+          "This record changed. Refresh before editing.",
+        );
+      const project = await tx.project.findUniqueOrThrow({
+        where: { id: projectId },
+      });
+      if (["COMPLETED", "CANCELLED"].includes(project.status))
+        throw new Error("This project is closed");
+      const data = parseRecord(r.kind, payload);
+      if (
+        r.kind === "worker" &&
+        (r.data.payBasis || "DAILY") !== data.payBasis
+      ) {
+        const used = await tx.record.findFirst({
+          where: {
+            projectId,
+            kind: { in: ["attendance", "worklog"] },
+            data: { path: ["workerId"], equals: id },
+          },
+        });
+        if (used)
+          throw new Error(
+            "A worker with attendance or certified work cannot change pay basis",
+          );
+      }
+      const result = await tx.record.update({
+        where: { id },
+        data: {
+          data,
+          key: recordKey(r.kind, data, id),
+          version: { increment: 1 },
+        },
+      });
+      await audit(c, `${r.kind}.edited`, id, { before: r.data, after: data });
       return result;
     });
   }
