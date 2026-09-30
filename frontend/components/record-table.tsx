@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   Plus,
   Search,
@@ -57,6 +58,11 @@ export function RecordTable({ kind }: { kind: string }) {
     [records, filter, search],
   );
   if (!s || !config) return null;
+  const fullBudget =
+    kind === "budget" &&
+    s.records.some(
+      (r) => r.kind === "budgetrelease" && r.status === "APPROVED",
+    );
   function display(key: string, value: any) {
     if (key === "siteId" || key === "destinationSiteId")
       return s!.project.sites.find((site) => site.id === value)?.name || "—";
@@ -115,13 +121,27 @@ export function RecordTable({ kind }: { kind: string }) {
             Bulk muster roll
           </button>
         )}
-        {canCreate(s.role, kind) && (
+        {!fullBudget && canCreate(s.role, kind) && (
           <button className="button primary" onClick={() => setAdding(true)}>
             <Plus size={18} />
             New {config.singular}
           </button>
         )}
       </div>
+      {fullBudget && (
+        <div className="schedule-warning">
+          <div>
+            <strong>This project uses a full versioned budget.</strong>
+            <p>
+              These earlier cost-head records stay available for history.{" "}
+              <Link href="/budget-versions" className="text-button">
+                Manage current budget versions
+                <ArrowUpRight size={16} />
+              </Link>
+            </p>
+          </div>
+        </div>
+      )}
       <div className="panel">
         <div className="table-toolbar">
           <div className="search-input">
@@ -237,7 +257,10 @@ export function RecordTable({ kind }: { kind: string }) {
                               Release retention
                             </button>
                           )}
-                        {actions(kind, r.status, s.role).map((action) => (
+                        {(fullBudget
+                          ? []
+                          : actions(kind, r.status, s.role)
+                        ).map((action) => (
                           <button
                             disabled={busy === r.id}
                             key={action}

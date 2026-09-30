@@ -113,7 +113,7 @@ export function Dashboard() {
           {
             title: "Approved budget",
             value: money(totalBudget, true),
-            detail: `${budgets.length} approved budget heads`,
+            detail: `${s.records.find((r) => r.kind === "budgetrelease" && r.status === "APPROVED")?.data.lines.length || budgets.length} approved budget heads`,
             icon: Wallet,
             tone: "green",
             href: "budget",

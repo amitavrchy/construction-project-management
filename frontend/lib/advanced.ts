@@ -565,6 +565,12 @@ export function advancedActions(
   status: string,
   role: string,
 ): string[] {
+  if (
+    kind === "materialrequest" &&
+    ["APPROVED", "PARTIAL_ISSUED"].includes(status) &&
+    writers.materialrequest.includes(role)
+  )
+    return ["REAUTHORIZE"];
   if (kind === "task" && writers.task.includes(role))
     return (
       (

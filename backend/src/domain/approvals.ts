@@ -10,6 +10,14 @@ export async function approve(
 ) {
   const r = await getRecord(c, id);
   assertTransition(r.kind, r.status, target);
+  if (
+    r.kind === "budget" &&
+    ["SUBMITTED", "APPROVED"].includes(target) &&
+    (await list(c, "budgetrelease")).some((b) => b.status === "APPROVED")
+  )
+    throw new Error(
+      "This project uses full budget versions. Revise the approved version to change the baseline.",
+    );
   if (target === "SUBMITTED" || target === "CANCELLED") {
     canWrite(c.actor, r.kind);
     if (c.actor.role === "CONTRACTOR" && r.createdBy !== c.actor.id)

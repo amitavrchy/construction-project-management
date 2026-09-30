@@ -171,6 +171,7 @@ export function ControlRoom({ analytics }: { analytics: Data | null }) {
                 amount: analytics.payable,
               },
               { name: "Recorded payments", amount: analytics.cashPaid },
+              { name: "Retention held", amount: analytics.retained },
               { name: "Remaining cost estimate", amount: e.estimateToComplete },
             ].map((r, i) => (
               <div key={r.name}>

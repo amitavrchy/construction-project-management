@@ -8,6 +8,7 @@ import {
   cost,
 } from "../domain/context";
 import { movingAverage, minor } from "../domain/money";
+import { requiredApprover } from "./permissions";
 export async function advancedMaterials(
   c: Context,
   kind: string,
@@ -20,12 +21,25 @@ export async function advancedMaterials(
     const lines = [];
     for (const line of d.lines) {
       const material = await getRecord(c, line.materialId, "material");
+      const stock =
+        kind === "materialrequest"
+          ? await c.tx.stock.findUnique({
+              where: {
+                siteId_materialId: {
+                  siteId: d.siteId,
+                  materialId: line.materialId,
+                },
+              },
+            })
+          : null;
+      const costMinor = stock ? stock.averageCostMinor : line.costMinor;
       lines.push({
         ...line,
         lineId: randomUUID(),
         materialName: material.data.name,
         unit: material.data.unit,
-        amountMinor: minor(line.quantity * line.costMinor),
+        costMinor,
+        amountMinor: minor(line.quantity * costMinor),
         received: 0,
         issued: 0,
       });
@@ -113,6 +127,27 @@ export async function advancedMaterials(
     const request = await getRecord(c, d.requestId, "materialrequest");
     if (!["APPROVED", "PARTIAL_ISSUED"].includes(request.status))
       throw new Error("Material request must be approved");
+    let currentValue = 0;
+    for (const line of request.data.lines) {
+      const stock = await c.tx.stock.findUnique({
+        where: {
+          siteId_materialId: {
+            siteId: request.data.siteId,
+            materialId: line.materialId,
+          },
+        },
+      });
+      currentValue +=
+        line.quantity * (stock?.averageCostMinor || line.costMinor);
+    }
+    if (
+      (await requiredApprover(c, "materialrequest", currentValue)) ===
+        "COMPANY_ADMIN" &&
+      request.data.approvedRole !== "COMPANY_ADMIN"
+    )
+      throw new Error(
+        "Valuation or approval policy changed. Reauthorize this material request before issuing.",
+      );
     const updated = request.data.lines.map((l: Data) => ({ ...l })),
       lines = [];
     for (let i = 0; i < d.lines.length; i++) {

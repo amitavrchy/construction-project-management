@@ -19,7 +19,7 @@ import {
 } from "../domain/context";
 import { minor } from "../domain/money";
 import { parseAdvanced, commandSchema } from "./schemas";
-import { assertAdvancedWrite, managers } from "./permissions";
+import { assertAdvancedWrite, managers, requiredApprover } from "./permissions";
 import { advancedMaterials } from "./materials";
 import { advancedContracts } from "./contracts";
 import { criticalPath, earnedValue } from "./planning";
@@ -312,9 +312,37 @@ export class AdvancedService {
         throw new ConflictException(
           "This record has changed. Refresh before acting.",
         );
-      const target = command.action;
+      let target = command.action;
       let data = { ...r.data };
-      if (["task", "risk", "rfi"].includes(r.kind)) {
+      if (r.kind === "materialrequest" && target === "REAUTHORIZE") {
+        assertAdvancedWrite(c.actor, r.kind);
+        if (!["APPROVED", "PARTIAL_ISSUED"].includes(r.status))
+          throw new Error("Only open approved requests can be reauthorized");
+        const lines = [];
+        for (const line of data.lines) {
+          const stock = await c.tx.stock.findUnique({
+            where: {
+              siteId_materialId: {
+                siteId: data.siteId,
+                materialId: line.materialId,
+              },
+            },
+          });
+          const costMinor = stock?.averageCostMinor || line.costMinor;
+          lines.push({
+            ...line,
+            costMinor,
+            amountMinor: minor(line.quantity * costMinor),
+          });
+        }
+        data = {
+          ...data,
+          lines,
+          totalMinor: minor(lines.reduce((n, l) => n + l.amountMinor, 0)),
+          approvedRole: "",
+        };
+        target = "SUBMITTED";
+      } else if (["task", "risk", "rfi"].includes(r.kind)) {
         assertAdvancedWrite(c.actor, r.kind);
         const allowed: Record<string, Record<string, string[]>> = {
           task: {
@@ -392,15 +420,11 @@ export class AdvancedService {
                 "Separate Accounts approval required",
               );
           } else {
-            const rules = (await list(c, "approvalrule"))
-              .filter(
-                (rule) =>
-                  rule.status === "ACTIVE" &&
-                  rule.data.kind === r.kind &&
-                  (data.totalMinor || 0) >= rule.data.thresholdMinor,
-              )
-              .sort((a, b) => b.data.thresholdMinor - a.data.thresholdMinor);
-            const required = rules[0]?.data.requiredRole || "PROJECT_MANAGER";
+            const required = await requiredApprover(
+              c,
+              r.kind,
+              data.totalMinor || 0,
+            );
             if (
               required === "COMPANY_ADMIN"
                 ? c.actor.role !== "COMPANY_ADMIN"
@@ -414,6 +438,8 @@ export class AdvancedService {
             throw new Error("Explain the rejection reason");
         }
         if (target === "PM_APPROVED") data.pmApprovedBy = c.actor.id;
+        if (["APPROVED", "PM_APPROVED"].includes(target))
+          data.approvedRole = c.actor.role;
         if (target === "ACCOUNTS_APPROVED" && r.kind === "measurementbill") {
           for (let i = 0; i < data.lines.length; i++)
             await cost(
@@ -607,7 +633,11 @@ export class AdvancedService {
             (r.kind === "wage" && r.status === "PAID"),
         )
         .reduce(
-          (n, r) => n + (r.kind === "bill" ? r.data.net : r.data.amountMinor),
+          (n, r) =>
+            n +
+            (r.kind === "bill"
+              ? r.data.net + (r.data.retentionReleasedOn ? r.data.retention : 0)
+              : r.data.amountMinor),
           0,
         ),
       retained: rows

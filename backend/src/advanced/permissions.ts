@@ -1,5 +1,21 @@
 import { ForbiddenException } from "@nestjs/common";
 import { Actor } from "../domain/access";
+import { Context, list } from "../domain/context";
+export async function requiredApprover(
+  c: Context,
+  kind: string,
+  value: number,
+) {
+  const rules = (await list(c, "approvalrule"))
+    .filter(
+      (r) =>
+        r.status === "ACTIVE" &&
+        r.data.kind === kind &&
+        value >= r.data.thresholdMinor,
+    )
+    .sort((a, b) => b.data.thresholdMinor - a.data.thresholdMinor);
+  return rules[0]?.data.requiredRole || "PROJECT_MANAGER";
+}
 export const managers = ["COMPANY_ADMIN", "PROJECT_MANAGER"];
 export const advancedWriters: Record<string, string[]> = {
   purchaseorder: [...managers, "STORE_KEEPER"],

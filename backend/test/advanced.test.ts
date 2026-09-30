@@ -278,19 +278,20 @@ test(
                 {
                   materialId: m1.id,
                   quantity: 4,
-                  costMinor: 10000,
+                  costMinor: 0,
                   costCode: "C",
                 },
                 {
                   materialId: m2.id,
                   quantity: 8,
-                  costMinor: 20000,
+                  costMinor: 0,
                   costCode: "S",
                 },
               ],
             },
             engineer,
           );
+          assert.equal((request.data as Data).totalMinor, 200000);
           await act(request.id, "SUBMITTED", engineer);
           await act(request.id, "APPROVED", pm);
           const rows = (request.data as any).lines;
@@ -366,6 +367,46 @@ test(
         },
       );
       let contract: any;
+      await t.test(
+        "changed approval policies require reauthorization and retain prior issued quantities",
+        async () => {
+          await create("approvalrule", {
+            name: "Tightened material policy",
+            kind: "materialrequest",
+            thresholdMinor: 100000,
+            requiredRole: "COMPANY_ADMIN",
+            note: "",
+          });
+          const line = (request.data as Data).lines[0];
+          await assert.rejects(() =>
+            create(
+              "dispatch",
+              {
+                requestId: request.id,
+                note: "",
+                lines: [{ lineId: line.lineId, quantity: 1 }],
+              },
+              store,
+            ),
+          );
+          await act(request.id, "REAUTHORIZE", engineer);
+          await assert.rejects(() => act(request.id, "APPROVED", pm));
+          await act(request.id, "APPROVED", admin);
+          await create(
+            "dispatch",
+            {
+              requestId: request.id,
+              note: "",
+              lines: [{ lineId: line.lineId, quantity: 1 }],
+            },
+            store,
+          );
+          const updated = await db.record.findUniqueOrThrow({
+            where: { id: request.id },
+          });
+          assert.equal((updated.data as Data).lines[0].issued, 3);
+        },
+      );
       await t.test(
         "multi-BOQ measurement bills reserve quantities and calculate aggregate deductions",
         async () => {
@@ -830,6 +871,61 @@ test(
               name: "Forbidden",
               reason: "x",
               expectedVersion: 3,
+            }),
+          );
+        },
+      );
+      await t.test(
+        "quick-entry routes cannot bypass the full budget baseline or reserved BOQ scope",
+        async () => {
+          const draft = await projects.create(admin, projectId, "budget", {
+            name: "Cannot replace baseline",
+            amountMinor: 1,
+            costCode: "X",
+            note: "",
+          });
+          await assert.rejects(() =>
+            projects.transition(admin, projectId, draft.id, "SUBMITTED"),
+          );
+          const pkg = contract.data as Data;
+          await assert.rejects(() =>
+            projects.create(admin, projectId, "workorder", {
+              title: "Overcommitted",
+              contractorId: pkg.contractorId,
+              boqId: pkg.lines[0].boqId,
+              quantity: 100,
+              rateMinor: 1000,
+              retentionBps: 500,
+              taxBps: 0,
+              costCode: "C",
+              defectsUntil: "2027-01-01",
+            }),
+          );
+        },
+      );
+      await t.test(
+        "catalog edits reject stale updates and preserve an already used pay basis",
+        async () => {
+          await projects.editCatalog(admin, projectId, m1.id, {
+            ...(m1.data as Data),
+            name: "Renamed cement",
+            expectedVersion: m1.version,
+          });
+          await assert.rejects(() =>
+            projects.editCatalog(admin, projectId, m1.id, {
+              ...(m1.data as Data),
+              name: "Stale rename",
+              expectedVersion: m1.version,
+            }),
+          );
+          const worker = await db.record.findFirstOrThrow({
+            where: { projectId, kind: "worker" },
+          });
+          await assert.rejects(() =>
+            projects.editCatalog(admin, projectId, worker.id, {
+              ...(worker.data as Data),
+              payBasis: "DAILY",
+              expectedVersion: worker.version,
             }),
           );
         },

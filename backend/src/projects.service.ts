@@ -1,4 +1,9 @@
-import { Injectable, Inject, ForbiddenException } from "@nestjs/common";
+import {
+  Injectable,
+  Inject,
+  ForbiddenException,
+  ConflictException,
+} from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { Db } from "./db";
 import { Actor, canWrite } from "./domain/access";
@@ -78,89 +83,94 @@ export class ProjectsService {
   }
   async snapshot(actor: Actor, projectId: string) {
     const scoped = await this.scope(actor, projectId);
-    const project = await this.db.project.findUniqueOrThrow({
-      where: { id: projectId },
-      include: { sites: true },
-    });
-    let records = await this.db.record.findMany({
-      where: { projectId },
-      orderBy: { createdAt: "desc" },
-    });
-    if (scoped.role === "CONTRACTOR")
-      records = records.filter((r) => {
-        const d = r.data as any;
-        return (
-          (r.kind === "contractor" && r.id === actor.contractorId) ||
-          ([
-            "workorder",
-            "bill",
-            "contractpackage",
-            "measurementbill",
-            "payment",
-            "retentionpayment",
-          ].includes(r.kind) &&
-            d.contractorId === actor.contractorId)
-        );
-      });
-    records = records.map((r) => {
-      const data = r.data as Data;
-      if (r.kind === "worker")
+    return this.db.$transaction(
+      async (tx) => {
+        const project = await tx.project.findUniqueOrThrow({
+          where: { id: projectId },
+          include: { sites: true },
+        });
+        let records = await tx.record.findMany({
+          where: { projectId },
+          orderBy: { createdAt: "desc" },
+        });
+        if (scoped.role === "CONTRACTOR")
+          records = records.filter((r) => {
+            const d = r.data as any;
+            return (
+              (r.kind === "contractor" && r.id === actor.contractorId) ||
+              ([
+                "workorder",
+                "bill",
+                "contractpackage",
+                "measurementbill",
+                "payment",
+                "retentionpayment",
+              ].includes(r.kind) &&
+                d.contractorId === actor.contractorId)
+            );
+          });
+        records = records.map((r) => {
+          const data = r.data as Data;
+          if (r.kind === "worker")
+            return {
+              ...r,
+              data: {
+                payBasis: "DAILY",
+                hourlyRateMinor: 0,
+                monthlyRateMinor: 0,
+                unitRateMinor: 0,
+                ...data,
+              },
+            };
+          if (r.kind === "document") {
+            const { content, ...metadata } = data;
+            return {
+              ...r,
+              data: {
+                ...metadata,
+                downloadUrl: `/api/projects/${projectId}/files/${r.id}`,
+              },
+            };
+          }
+          if (r.kind === "progress" && data.photo) {
+            const { photo, ...metadata } = data;
+            return {
+              ...r,
+              data: {
+                ...metadata,
+                photoUrl: `/api/projects/${projectId}/files/${r.id}`,
+              },
+            };
+          }
+          return r;
+        });
         return {
-          ...r,
-          data: {
-            payBasis: "DAILY",
-            hourlyRateMinor: 0,
-            monthlyRateMinor: 0,
-            unitRateMinor: 0,
-            ...data,
-          },
+          project,
+          role: scoped.role,
+          records,
+          stock:
+            scoped.role === "CONTRACTOR"
+              ? []
+              : await tx.stock.findMany({ where: { site: { projectId } } }),
+          ledger:
+            scoped.role === "CONTRACTOR"
+              ? []
+              : await tx.ledger.findMany({
+                  where: { projectId },
+                  orderBy: { createdAt: "desc" },
+                }),
+          audits:
+            scoped.role === "CONTRACTOR"
+              ? []
+              : await tx.audit.findMany({
+                  where: { projectId },
+                  take: 50,
+                  orderBy: { createdAt: "desc" },
+                }),
         };
-      if (r.kind === "document") {
-        const { content, ...metadata } = data;
-        return {
-          ...r,
-          data: {
-            ...metadata,
-            downloadUrl: `/api/projects/${projectId}/files/${r.id}`,
-          },
-        };
-      }
-      if (r.kind === "progress" && data.photo) {
-        const { photo, ...metadata } = data;
-        return {
-          ...r,
-          data: {
-            ...metadata,
-            photoUrl: `/api/projects/${projectId}/files/${r.id}`,
-          },
-        };
-      }
-      return r;
-    });
-    return {
-      project,
-      role: scoped.role,
-      records,
-      stock:
-        scoped.role === "CONTRACTOR"
-          ? []
-          : await this.db.stock.findMany({ where: { site: { projectId } } }),
-      ledger:
-        scoped.role === "CONTRACTOR"
-          ? []
-          : await this.db.ledger.findMany({
-              where: { projectId },
-              orderBy: { createdAt: "desc" },
-            }),
-      audits:
-        scoped.role === "CONTRACTOR"
-          ? []
-          : await this.db.audit.findMany({
-              where: { projectId },
-              take: 50,
-              orderBy: { createdAt: "desc" },
-            }),
-    };
+      },
+      { isolationLevel: "RepeatableRead" },
+    );
   }
   async create(actor: Actor, projectId: string, kind: string, input: unknown) {
     actor = await this.scope(actor, projectId);

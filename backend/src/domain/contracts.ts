@@ -7,7 +7,31 @@ export async function contracts(
 ): Promise<Data> {
   if (kind === "workorder") {
     await getRecord(c, d.contractorId, "contractor");
-    await getRecord(c, d.boqId, "boq");
+    const boq = await getRecord(c, d.boqId, "boq");
+    if (d.costCode !== boq.data.costCode)
+      throw new Error("Work order cost code must match its BOQ");
+    const reserved =
+      (await list(c, "workorder"))
+        .filter((r) => r.data.boqId === d.boqId)
+        .reduce((n, r) => n + r.data.quantity, 0) +
+      (await list(c, "contractpackage"))
+        .filter((r) => r.status !== "REJECTED")
+        .reduce(
+          (n, r) =>
+            n +
+            r.data.lines
+              .filter((l: Data) => l.boqId === d.boqId)
+              .reduce((s: number, l: Data) => s + l.quantity, 0),
+          0,
+        );
+    const extra = (await list(c, "variation"))
+      .filter((r) => r.status === "APPROVED" && r.data.boqId === d.boqId)
+      .reduce((n, r) => n + r.data.additionalQuantity, 0);
+    if (
+      Math.round((reserved + d.quantity) * 1000) >
+      Math.round((boq.data.quantity + extra) * 1000)
+    )
+      throw new Error("Work order exceeds remaining approved BOQ quantity");
   }
   if (kind === "bill") {
     const order = await getRecord(c, d.workorderId, "workorder");
