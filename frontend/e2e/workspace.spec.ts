@@ -5,7 +5,7 @@ test("desktop workflows render, save, search and export with accessible typograp
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto("/");
+  await page.goto("/control");
   await page.getByLabel("Work email").fill("admin@sitecraft.local");
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in to workspace" }).click();
@@ -110,7 +110,7 @@ test("mobile navigation fits viewport and contractor portal restricts records", 
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
+  await page.goto("/control");
   await page.getByLabel("Work email").fill("contractor@sitecraft.local");
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in to workspace" }).click();

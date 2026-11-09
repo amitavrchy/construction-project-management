@@ -5,7 +5,7 @@ test("advanced registers planning analytics deep search and multi-line procureme
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto("/");
+  await page.goto("/control");
   await page.getByLabel("Work email").fill("admin@sitecraft.local");
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in to workspace" }).click();

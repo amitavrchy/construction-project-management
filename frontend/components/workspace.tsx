@@ -113,7 +113,7 @@ export function Workspace() {
     content = (
       <div className="empty panel">
         <h1>Page not found</h1>
-        <Link className="button primary" href="/">
+        <Link className="button primary" href="/control">
           Back to overview
         </Link>
       </div>
@@ -131,7 +131,7 @@ export function Workspace() {
         />
       )}
       <aside className={`sidebar ${mobile ? "sidebar-open" : ""}`}>
-        <Link href="/" className="brand">
+        <Link href="/control" className="brand">
           <span className="brand-symbol">
             <Icons.HardHat size={25} />
           </span>
@@ -161,7 +161,7 @@ export function Workspace() {
                   return (
                     <Link
                       key={id}
-                      href={id === "control" ? "/" : `/${id}`}
+                      href={`/${id}`}
                       className={`nav-link ${section === id ? "active" : ""}`}
                       onClick={() => setMobile(false)}
                     >

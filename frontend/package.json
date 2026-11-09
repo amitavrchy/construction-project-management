@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:marketing": "playwright test --config=playwright.marketing.config.ts"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

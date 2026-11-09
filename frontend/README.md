@@ -1,6 +1,6 @@
 # Sitecraft frontend
 
-Next.js 16 / React 19, with an independent lockfile and dependency installation. All text is at least 14px, with responsive layouts, native accessible dialogs, keyboard controls and reduced-motion support.
+Next.js 16 / React 19, with an independent lockfile and dependency installation. The workspace uses readable typography, responsive layouts, native accessible dialogs, keyboard controls and reduced-motion support.
 
 From the repository root:
 
@@ -19,9 +19,11 @@ npm run start --prefix frontend
 
 The start wrapper serves Next's standalone output and copies static assets into the standalone directory. It supports independent and legacy monorepo build layouts.
 
-The homepage is the control room. Planning, budget versions, procurement, commercial control, approval inbox, risks, RFIs, site intelligence, notifications and approval policies are in the primary sidebar. `/overview` preserves the site summary. Ctrl/Cmd+K opens global search; record links select the correct register and open its detail dialog. Selected projects are remembered per signed-in user.
+The public homepage is a static marketing page. The existing company sign-in flow and control room are at `/control`; access is provided by a company administrator. Planning, budget versions, procurement, commercial control, approval inbox, risks, RFIs, site intelligence, notifications and approval policies are in the primary sidebar. `/overview` preserves the site summary. Ctrl/Cmd+K opens global search; record links select the correct register and open its detail dialog. Selected projects are remembered per signed-in user.
 
 Multi-line forms show rate/quantity totals before submission. The execution board supports both drag/drop and select-based keyboard actions. The server is authoritative for permissions, deductions, inventory, workflow transitions and revision checks; UI visibility is not an access boundary.
+
+`npm run test:marketing` checks the public page at 360, 768, 1280 and 1920px, static HTML without JavaScript, keyboard FAQ interaction and the sign-in link without requiring a backend. Netlify?s built-in `URL` sets the social-image origin at build time; local builds fall back to localhost.
 
 ## Browser verification
 
