@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 import {
   Controller,
   Get,
@@ -12,6 +13,7 @@ import { hash } from "bcryptjs";
 import { z } from "zod";
 import { Db } from "./db";
 import { roles } from "./domain/schemas";
+import { passwordWithinLimit } from "./session-security";
 @Controller("team")
 export class TeamController {
   constructor(@Inject(Db) private db: Db) {}
@@ -36,7 +38,11 @@ export class TeamController {
       .object({
         name: z.string().trim().min(1).max(200),
         email: z.email().toLowerCase(),
-        password: z.string().min(12).max(200),
+        password: z
+          .string()
+          .min(12)
+          .max(200)
+          .refine(passwordWithinLimit, "Password exceeds 72 UTF-8 bytes"),
         role: z.enum(roles),
         projectId: z.string(),
         contractorId: z.string().optional(),
@@ -56,7 +62,9 @@ export class TeamController {
         },
       }))
     )
-      throw new Error("Select a contractor belonging to this project");
+      throw new BadRequestException(
+        "Select a contractor belonging to this project",
+      );
     const user = await this.db.user.create({
       data: {
         name: d.name,

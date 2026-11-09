@@ -1,4 +1,8 @@
-import { Injectable, OnModuleDestroy } from "@nestjs/common";
+import {
+  Injectable,
+  OnModuleDestroy,
+  ServiceUnavailableException,
+} from "@nestjs/common";
 import Redis from "ioredis";
 @Injectable()
 export class Cache implements OnModuleDestroy {
@@ -29,6 +33,29 @@ export class Cache implements OnModuleDestroy {
     try {
       await this.client?.del(`stock:${projectId}`, `boq:${projectId}`);
     } catch {}
+  }
+  async limit(key: string, maximum: number, seconds: number) {
+    if (!this.client)
+      throw new ServiceUnavailableException("Login protection requires Redis");
+    try {
+      const count = Number(
+        await this.client.eval(
+          "local n=redis.call('INCR',KEYS[1]);if n==1 then redis.call('EXPIRE',KEYS[1],ARGV[1]) end;return n",
+          1,
+          key,
+          seconds,
+        ),
+      );
+      return count <= maximum;
+    } catch {
+      throw new ServiceUnavailableException(
+        "Login protection temporarily unavailable",
+      );
+    }
+  }
+  async ready() {
+    if (!this.client || (await this.client.ping()) !== "PONG")
+      throw new ServiceUnavailableException("Redis is unavailable");
   }
   async onModuleDestroy() {
     await this.client?.quit().catch(() => {});

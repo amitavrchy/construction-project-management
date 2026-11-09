@@ -2,13 +2,28 @@ import { Queue, Worker } from "bullmq";
 import { Db } from "./db";
 import { budgetReport } from "./reports";
 import { ProjectsService } from "./projects.service";
+import { Injectable, Inject, OnApplicationBootstrap } from "@nestjs/common";
+
+@Injectable()
+export class JobsLifecycle implements OnApplicationBootstrap {
+  private close?: () => Promise<void>;
+  constructor(@Inject(Db) private readonly db: Db) {}
+  async onApplicationBootstrap() {
+    this.close = await startJobs(this.db);
+  }
+  async stop() {
+    await this.close?.();
+  }
+}
 export async function startJobs(db: Db) {
   if (!process.env.REDIS_URL) return async () => {};
   const url = new URL(process.env.REDIS_URL);
   const connection = {
     host: url.hostname,
     port: Number(url.port || 6379),
-    password: url.password || undefined,
+    username: decodeURIComponent(url.username) || undefined,
+    password: decodeURIComponent(url.password) || undefined,
+    db: Number(url.pathname.slice(1) || 0),
     maxRetriesPerRequest: null,
     ...(url.protocol === "rediss:" ? { tls: {} } : {}),
   };
@@ -59,21 +74,47 @@ export async function startJobs(db: Db) {
               (r.data as any).retention > 0,
           )
           .map((r) => r.id);
-        await db.audit.create({
-          data: {
-            projectId: project.id,
-            actorId: "SYSTEM",
-            entityId: project.id,
-            action: "daily.digest",
-            detail: {
-              today,
-              alerts,
-              overdue,
-              retention,
-              payrollReminder:
-                "Review attendance and generate the next wage period.",
+        // The unique marker and audit commit together, so retries do not duplicate digests.
+        await db.atomic(async (tx) => {
+          const key = `daily-digest:${today}`;
+          if (
+            await tx.record.findUnique({
+              where: {
+                projectId_kind_key: {
+                  projectId: project.id,
+                  kind: "system",
+                  key,
+                },
+              },
+            })
+          )
+            return;
+          await tx.record.create({
+            data: {
+              projectId: project.id,
+              kind: "system",
+              key,
+              status: "POSTED",
+              createdBy: "SYSTEM",
+              data: { synthetic: false, date: today },
             },
-          },
+          });
+          await tx.audit.create({
+            data: {
+              projectId: project.id,
+              actorId: "SYSTEM",
+              entityId: project.id,
+              action: "daily.digest",
+              detail: {
+                today,
+                alerts,
+                overdue,
+                retention,
+                payrollReminder:
+                  "Review attendance and generate the next wage period.",
+              },
+            },
+          });
         });
         if (today.endsWith("-01")) {
           const end = new Date(`${today}T00:00:00+06:00`);
@@ -129,8 +170,8 @@ export async function startJobs(db: Db) {
     },
     { connection },
   );
-  worker.on("error", (error) => console.error("Job worker:", error.message));
-  queue.on("error", (error) => console.error("Job queue:", error.message));
+  worker.on("error", () => console.error("Job worker connection failed"));
+  queue.on("error", () => console.error("Job queue connection failed"));
   return async () => {
     await worker.close();
     await queue.close();

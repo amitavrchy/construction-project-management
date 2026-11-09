@@ -21,6 +21,7 @@ model User {
   role String
   contractorId String?
   active Boolean @default(true)
+  sessionVersion Int @default(0)
   memberships Member[]
 }
 model Project {
