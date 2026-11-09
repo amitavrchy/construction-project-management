@@ -18,6 +18,7 @@ import {
   CircleCheck,
 } from "lucide-react";
 import "./marketing.css";
+import { LandingMotion } from "./landing-motion";
 function Brand() {
   return (
     <Link className="sc-brand" href="/" aria-label="Sitecraft home">
@@ -163,6 +164,7 @@ const features = [
 export function Marketing() {
   return (
     <div className="sc-marketing">
+      <LandingMotion />
       <a className="sc-skip" href="#sc-main">
         Skip to content
       </a>
@@ -225,6 +227,7 @@ export function Marketing() {
                     patternUnits="userSpaceOnUse"
                   >
                     <path
+                      pathLength="1"
                       d="M7 4h22v20H7z"
                       stroke="currentColor"
                       strokeWidth=".6"
@@ -232,16 +235,22 @@ export function Marketing() {
                   </pattern>
                 </defs>
                 <g stroke="currentColor">
-                  <path d="M40 333 310 380 568 289M105 319V156l144 22v165M249 178l101-59v218M105 156l101-57 144 20M206 99v224M286 337V64l123 23v224M409 87l80-46v248M286 64l80-46 123 23M366 18v286" />
                   <path
+                    pathLength="1"
+                    d="M40 333 310 380 568 289M105 319V156l144 22v165M249 178l101-59v218M105 156l101-57 144 20M206 99v224M286 337V64l123 23v224M409 87l80-46v248M286 64l80-46 123 23M366 18v286"
+                  />
+                  <path
+                    pathLength="1"
                     d="M105 156v163l144 24V178zM286 64v273l123-26V87z"
                     fill="url(#sc-windows)"
                   />
                   <path
+                    pathLength="1"
                     d="m249 210 101-58m-101 90 101-58m-101 90 101-58m-101 90 101-58M409 122l80-46m-80 81 80-46m-80 81 80-46m-80 81 80-46m-80 81 80-46M60 345V115m-8 0h16m-16 230h16M290 8h210M510 40v250m-7-250h14m-14 250h14"
                     strokeWidth=".6"
                   />
                   <path
+                    pathLength="1"
                     d="M65 78h162M146 78v50M85 78l61-45 64 45M146 33v-8M89 78v32m-6 0h12m51-32v255"
                     strokeWidth="1.5"
                   />

@@ -881,25 +881,7 @@
 .sc-skip:focus {
   top: 10px;
 }
-@keyframes sc-rise {
-  from {
-    opacity: 0.4;
-    transform: translateY(15px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-@supports (animation-timeline: view()) {
-  .sc-feature-grid article,
-  .sc-steps li,
-  .sc-personas article {
-    animation: sc-rise linear both;
-    animation-timeline: view();
-    animation-range: entry 0% entry 20%;
-  }
-}
+
 @media (min-width: 1600px) {
   .sc-hero {
     padding-block: 90px;
@@ -1435,21 +1417,283 @@
     font-size: clamp(60px, 17vw, 76px);
   }
 }
-@keyframes sc-reveal {
+
+.sc-feature-top > span {
+  color: #596b53;
+}
+/* One 90% rail across the page; full-bleed sections retain their backgrounds. */
+.sc-nav,
+.sc-hero,
+.sc-discipline-strip,
+.sc-section,
+.sc-final,
+.sc-footer {
+  width: 90%;
+  max-width: none;
+  margin-inline: auto;
+}
+.sc-nav,
+.sc-hero,
+.sc-section,
+.sc-footer {
+  padding-inline: 0;
+}
+.sc-showcase,
+.sc-people {
+  padding-inline: 5%;
+}
+.sc-showcase-inner,
+.sc-people-inner {
+  max-width: none;
+  width: 100%;
+}
+.sc-hero {
+  grid-template-columns: 1fr 1.05fr;
+  gap: 7%;
+  padding-block: 75px;
+}
+.sc-hero-visual {
+  align-self: center;
+}
+.sc-drawing {
+  max-height: 680px;
+  aspect-ratio: 1/1.05;
+  width: 100%;
+}
+.sc-drawing svg {
+  animation: sc-blueprint-float 7s ease-in-out infinite;
+}
+
+.sc-floating-card {
+  animation: sc-card-float 4.5s ease-in-out infinite;
+}
+.sc-drawing:before {
+  animation: sc-cross-turn 8s ease-in-out infinite;
+  transform-origin: center;
+}
+.sc-hero-copy > .sc-kicker,
+.sc-hero h1,
+.sc-hero-copy > p,
+.sc-actions,
+.sc-access-note {
+  animation: sc-hero-arrive 1.2s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+.sc-hero h1 {
+  animation-delay: 0.1s;
+}
+.sc-hero-copy > p {
+  animation-delay: 0.25s;
+}
+.sc-actions {
+  animation-delay: 0.4s;
+}
+.sc-access-note {
+  animation-delay: 0.55s;
+}
+.sc-chart-bars i {
+  transform-origin: bottom;
+}
+.sc-preview-progress i {
+  transform-origin: left;
+}
+.sc-feature-grid article,
+.sc-steps li,
+.sc-personas article {
+  animation: none;
+  animation-timeline: auto;
+}
+.sc-feature-top > svg {
+  transition: transform 0.3s;
+}
+.sc-feature-grid article:hover .sc-feature-top > svg {
+  transform: translateY(-5px) rotate(-8deg);
+}
+.sc-button > svg,
+.sc-text-link > svg {
+  transition: transform 0.25s;
+}
+.sc-button:hover > svg,
+.sc-text-link:hover > svg {
+  transform: translate(3px, -3px);
+}
+
+@keyframes sc-blueprint-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+@keyframes sc-card-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+@keyframes sc-cross-turn {
+  0%,
+  40% {
+    transform: rotate(0);
+  }
+  60%,
+  100% {
+    transform: rotate(90deg);
+  }
+}
+@keyframes sc-hero-arrive {
   from {
-    transform: translateY(15px);
+    transform: translateY(35px);
   }
   to {
     transform: translateY(0);
   }
 }
-@supports (animation-timeline: view()) {
-  .sc-feature-grid article,
-  .sc-steps li,
-  .sc-personas article {
-    animation-name: sc-reveal;
+@media (min-width: 1500px) {
+  .sc-hero h1 {
+    font-size: clamp(100px, 6.2vw, 124px);
+  }
+  .sc-hero-copy > p {
+    max-width: 560px;
+    font-size: 20px;
+  }
+  .sc-hero {
+    padding-block: 90px;
+  }
+  .sc-feature-grid article {
+    padding: 40px;
+  }
+  .sc-feature-grid p {
+    font-size: 15px;
+  }
+  .sc-feature-grid h3 {
+    font-size: 25px;
+  }
+  .sc-section-heading > p,
+  .sc-section-heading > div:last-child:not(:first-child) {
+    max-width: 520px;
+    font-size: 16px;
+  }
+  .sc-preview-content {
+    padding: 36px 42px;
+  }
+  .sc-chart-bars > div > div {
+    height: 150px;
   }
 }
-.sc-feature-top > span {
-  color: #596b53;
+@media (max-width: 900px) {
+  .sc-hero {
+    gap: 5%;
+    padding-block: 55px;
+  }
+  .sc-drawing {
+    aspect-ratio: 1/1.5;
+  }
+}
+@media (max-width: 600px) {
+  .sc-nav {
+    gap: 10px;
+  }
+  .sc-hero {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    padding-block: 40px 30px;
+  }
+  .sc-hero-visual {
+    margin-inline: 15px 10px;
+  }
+  .sc-drawing {
+    aspect-ratio: 1/0.95;
+  }
+  .sc-section {
+    padding-block: 55px;
+  }
+  .sc-final {
+    padding: 35px 25px;
+  }
+  .sc-footer {
+    padding-bottom: 25px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sc-marketing *,
+  .sc-marketing *:before,
+  .sc-marketing *:after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+.sc-motion-control {
+  display: none;
+  position: fixed;
+  right: 20px;
+  bottom: 18px;
+  z-index: 45;
+  border: 1px solid #adc3a0;
+  background: #f8f8f2f0;
+  color: #173c2e;
+  backdrop-filter: blur(12px);
+  border-radius: 24px;
+  padding: 9px 14px;
+  font-size: 11px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px #0001;
+}
+.sc-marketing[data-motion-ready] .sc-motion-control {
+  display: block;
+}
+.sc-marketing[data-motion-paused] *,
+.sc-marketing[data-motion-paused] *:before,
+.sc-marketing[data-motion-paused] *:after {
+  animation-play-state: paused !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sc-marketing .sc-motion-control {
+    display: none !important;
+  }
+}
+
+/* Composited blueprint reveal and surveying beam keep motion smooth on mobile. */
+.sc-drawing svg {
+  will-change: transform;
+  animation:
+    sc-blueprint-reveal 1.8s cubic-bezier(0.16, 1, 0.3, 1) both,
+    sc-blueprint-float 7s ease-in-out 1.8s infinite;
+}
+.sc-drawing:after {
+  content: "";
+  top: 0;
+  bottom: 0;
+  left: -30%;
+  width: 20%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, #d5ebbb24, transparent);
+  animation: sc-site-scan 6s linear infinite;
+  pointer-events: none;
+  will-change: transform;
+}
+@keyframes sc-blueprint-reveal {
+  from {
+    clip-path: inset(100% 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes sc-site-scan {
+  to {
+    transform: translateX(750%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sc-marketing *,
+  .sc-marketing *:before,
+  .sc-marketing *:after {
+    animation: none !important;
+    transition: none !important;
+  }
 }

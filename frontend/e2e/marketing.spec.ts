@@ -12,6 +12,10 @@ for (const width of [360, 768, 1280, 1920]) {
       return route.abort();
     });
     await page.goto("/");
+    const railWidth = await page
+      .locator(".sc-nav")
+      .evaluate((element) => element.getBoundingClientRect().width);
+    expect(railWidth).toBeCloseTo(width * 0.9, 0);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       "Build witha clearerpicture.",
     );
@@ -83,4 +87,74 @@ test("landing CTA reaches the existing company sign-in flow", async ({
     page.getByRole("button", { name: "Sign in to workspace" }),
   ).toBeVisible();
   await expect(page.getByLabel("Work email")).toBeVisible();
+});
+
+test("motion is visible, pausable and respects reduced-motion preferences", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/");
+  const pause = page.getByRole("button", { name: "Pause motion", exact: true });
+  await expect(pause).toBeVisible();
+  const transform = () =>
+    page
+      .locator(".sc-floating-card")
+      .evaluate((element) => getComputedStyle(element, null).transform);
+  const initial = await transform();
+  await expect.poll(transform).not.toBe(initial);
+  await page
+    .locator(".sc-feature-grid article")
+    .first()
+    .scrollIntoViewIfNeeded();
+  await expect
+    .poll(() =>
+      page
+        .locator(".sc-feature-grid article")
+        .first()
+        .evaluate(
+          (element) =>
+            element
+              .getAnimations()
+              .filter((animation) => animation.playState === "running").length,
+        ),
+    )
+    .toBeGreaterThan(0);
+  await pause.click();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          document
+            .getAnimations()
+            .filter((animation) => animation.playState === "running").length,
+      ),
+    )
+    .toBe(0);
+  await page
+    .getByRole("button", { name: "Resume motion", exact: true })
+    .click();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          document
+            .getAnimations()
+            .filter((animation) => animation.playState === "running").length,
+      ),
+    )
+    .toBeGreaterThan(0);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          document
+            .getAnimations()
+            .filter((animation) => animation.playState === "running").length,
+      ),
+    )
+    .toBe(0);
+  await expect(
+    page.getByRole("button", { name: "Pause motion", exact: true }),
+  ).toBeHidden();
 });
