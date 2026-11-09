@@ -45,6 +45,7 @@ See [deployment](deployment.md) and [seed provenance](seed-data.md). The invento
 
 ## Changed-file inventory
 
+- `backend/.gitattributes`
 - `backend/.env.example`
 - `backend/Dockerfile`
 - `backend/README.md`
