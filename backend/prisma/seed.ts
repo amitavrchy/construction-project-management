@@ -4,10 +4,20 @@ config({ path: resolve(process.cwd(), ".env"), quiet: true });
 config({ path: resolve(process.cwd(), "../.env"), quiet: true });
 import { PrismaClient } from "@prisma/client";
 import { hash } from "bcryptjs";
+import { randomBytes } from "node:crypto";
 const db = new PrismaClient();
 async function main() {
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.ALLOW_PRODUCTION_SEED !== "true"
+  )
+    throw new Error("Explicit production seed approval required");
   const password = process.env.SEED_PASSWORD;
-  if (!password || password.length < 12)
+  if (
+    !password ||
+    password.length < 12 ||
+    Buffer.byteLength(password, "utf8") > 72
+  )
     throw new Error("SEED_PASSWORD must contain at least 12 characters");
   if (await db.company.findUnique({ where: { id: "company-sitecraft" } })) {
     console.log("Seed company already exists; data preserved.");
@@ -19,9 +29,14 @@ async function main() {
         projectId = "project-greenwood",
         siteId = "site-main";
       await tx.company.create({
-        data: { id: companyId, name: "Sitecraft Construction Ltd." },
+        data: { id: companyId, name: "Sitecraft Synthetic Demonstration Ltd." },
       });
-      const passwordHash = await hash(password, 12);
+      const passwordHash = await hash(
+        process.env.NODE_ENV === "production"
+          ? randomBytes(48).toString("base64url")
+          : password,
+        12,
+      );
       const users = [
         ["admin", "Amitav Roy Chowdhury", "COMPANY_ADMIN"],
         ["pm", "Nadia Rahman", "PROJECT_MANAGER"],
@@ -364,12 +379,17 @@ async function main() {
     { timeout: 30000 },
   );
   console.log(
-    "Seed complete. Login: admin@sitecraft.local (password from SEED_PASSWORD). Other roles: pm, engineer, store, accounts, supervisor, contractor @sitecraft.local.",
+    process.env.NODE_ENV === "production"
+      ? "Synthetic seed complete; production sample passwords are random and discarded."
+      : "Synthetic seed complete. Local role passwords come from SEED_PASSWORD.",
   );
 }
 main()
   .catch((e) => {
-    console.error(e);
+    console.error(
+      "Seed failed:",
+      e instanceof Error ? e.constructor.name : "Unknown",
+    );
     process.exitCode = 1;
   })
   .finally(() => db.$disconnect());

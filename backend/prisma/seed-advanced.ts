@@ -23,9 +23,7 @@ const admin = actor("admin", "COMPANY_ADMIN"),
   store = actor("store", "STORE_KEEPER"),
   accounts = actor("accounts", "ACCOUNTANT"),
   contractor = actor("contractor", "CONTRACTOR");
-const today = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "Asia/Dhaka",
-}).format(new Date());
+const today = "2026-11-09";
 async function ensure(kind: string, data: Data, by = admin) {
   const field = data.reference
     ? "reference"
@@ -76,6 +74,18 @@ async function ensureSchedule() {
     });
 }
 async function main() {
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.ALLOW_PRODUCTION_SEED !== "true"
+  )
+    throw new Error("Explicit production seed approval required");
+  const company = await db.company.findUnique({
+    where: { id: "company-sitecraft" },
+  });
+  if (company?.name !== "Sitecraft Synthetic Demonstration Ltd.")
+    throw new Error(
+      "Synthetic tenant provenance missing; refusing to modify operational data",
+    );
   if (!(await db.project.findUnique({ where: { id: projectId } })))
     throw new Error("Run the base seed first");
   if (
@@ -83,7 +93,6 @@ async function main() {
       where: { projectId, kind: "system", key: "advanced-demo-v1" },
     })
   ) {
-    await ensureSchedule();
     console.log(
       "Advanced demonstration already exists; operational records preserved.",
     );
@@ -474,7 +483,10 @@ async function main() {
 }
 main()
   .catch((e) => {
-    console.error(e);
+    console.error(
+      "Seed failed:",
+      e instanceof Error ? e.constructor.name : "Unknown",
+    );
     process.exitCode = 1;
   })
   .finally(() => db.$disconnect());

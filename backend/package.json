@@ -14,7 +14,9 @@
     "format:check": "prettier --check .",
     "setup": "node scripts/setup.mjs",
     "verify": "node scripts/verify.mjs",
-    "db:seed:advanced": "tsx prisma/seed-advanced.ts"
+    "db:seed:advanced": "tsx prisma/seed-advanced.ts",
+    "db:seed:verify": "node scripts/verify-seed.mjs",
+    "admin:bootstrap": "node scripts/bootstrap-admin.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^12.3.2",
