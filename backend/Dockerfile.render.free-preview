@@ -1,0 +1,23 @@
+# Build context: construction-project-management repository root.
+FROM node:24-bookworm-slim AS build
+WORKDIR /app
+ENV NODE_OPTIONS=--max-old-space-size=256
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY backend/package*.json ./
+RUN npm ci --no-fund --no-audit
+COPY backend/ ./
+RUN sed -i 's/\r$//' scripts/*.free-preview.sh && bash -n scripts/entrypoint.free-preview.sh && bash -n scripts/initialize.free-preview.sh
+RUN npm run db:generate && npm run build
+
+FROM node:24-bookworm-slim
+RUN mkdir -p /etc/postgresql-common && printf 'create_main_cluster = false\n' > /etc/postgresql-common/createcluster.conf \
+ && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::=--force-confold --no-install-recommends postgresql-15 redis-server util-linux openssl ca-certificates \
+ && rm -rf /var/lib/apt/lists/* \
+ && mkdir -p /preview/postgres /preview/redis /preview/run && chown -R node:node /preview
+ENV NODE_ENV=production PORT=4000 PATH=/usr/lib/postgresql/15/bin:$PATH NODE_OPTIONS=--max-old-space-size=96 UV_THREADPOOL_SIZE=2
+WORKDIR /app
+COPY --from=build --chown=node:node /app ./
+USER node
+EXPOSE 4000
+HEALTHCHECK --interval=15s --timeout=5s --start-period=180s CMD node --max-old-space-size=24 scripts/free-preview-health.mjs
+ENTRYPOINT ["bash", "/app/scripts/entrypoint.free-preview.sh"]
