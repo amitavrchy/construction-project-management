@@ -8,7 +8,7 @@ import {
   useRef,
   ReactNode,
 } from "react";
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 import { User, Project, Snapshot } from "../lib/types";
 type Context = {
   user: User | null;
@@ -53,7 +53,9 @@ export function Provider({ children }: { children: ReactNode }) {
             "",
         );
       })
-      .catch(() => {})
+      .catch((e) => {
+        if (!(e instanceof ApiError && e.status === 401)) setError(e.message);
+      })
       .finally(() => setLoading(false));
   }, [loadProjects]);
   const refresh = useCallback(async () => {
@@ -78,6 +80,23 @@ export function Provider({ children }: { children: ReactNode }) {
         if (token === generation.current) setError(e.message);
       });
   }, [projectId, user]);
+  // Revalidate private in-memory records after returning to the tab. Never persist snapshots.
+  useEffect(() => {
+    if (!user) return;
+    const revalidate = () => {
+      void refresh().catch((e) => {
+        if (e instanceof ApiError && e.status === 401) {
+          generation.current++;
+          setUser(null);
+          setProjects([]);
+          setSnapshot(null);
+          select("");
+        } else setError(e.message);
+      });
+    };
+    window.addEventListener("focus", revalidate);
+    return () => window.removeEventListener("focus", revalidate);
+  }, [user, refresh]);
   useEffect(() => {
     if (toast) {
       const timer = setTimeout(() => setToast(""), 4500);
@@ -106,7 +125,23 @@ export function Provider({ children }: { children: ReactNode }) {
   }
   async function mutate(path: string, data: unknown, method = "POST") {
     const result = await api(path, method, data);
-    await refresh();
+    if (path === "auth/password") {
+      generation.current++;
+      setUser(null);
+      setProjects([]);
+      setSnapshot(null);
+      select("");
+      setToast("Password changed. Sign in again on each device.");
+      return result;
+    }
+    try {
+      await refresh();
+      setError("");
+    } catch {
+      setError(
+        "Changes were saved, but the latest records could not be loaded. Refresh before making another change.",
+      );
+    }
     setToast("Changes saved successfully");
     return result;
   }

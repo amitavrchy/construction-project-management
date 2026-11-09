@@ -3,7 +3,7 @@ import { useState } from "react";
 import { ArrowUpRight, HardHat, ShieldCheck, ArrowRight } from "lucide-react";
 import { useWorkspace } from "./provider";
 export function Login() {
-  const { login } = useWorkspace();
+  const { login, error: connectionError } = useWorkspace();
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   return (
@@ -79,9 +79,15 @@ export function Login() {
                 required
               />
             </label>
-            {error && (
+            {busy && (
+              <p role="status">
+                The backend may take a minute to start. Waiting for a verified
+                response.
+              </p>
+            )}
+            {(error || connectionError) && (
               <div className="form-error" role="alert">
-                {error}
+                {error || connectionError}
               </div>
             )}
             <button className="button primary full" disabled={busy}>

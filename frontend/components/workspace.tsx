@@ -39,7 +39,9 @@ export function Workspace() {
         <span className="brand-symbol">
           <Icons.HardHat size={28} />
         </span>
-        <span>Preparing your workspace…</span>
+        <span>
+          Connecting to your workspace. The backend may take a minute to start.
+        </span>
         <span className="loader" />
       </div>
     );
