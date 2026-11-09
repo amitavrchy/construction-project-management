@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 import { Context, Data, getRecord, list } from "./context";
 import { billTotal } from "./money";
 export async function contracts(
@@ -9,7 +10,7 @@ export async function contracts(
     await getRecord(c, d.contractorId, "contractor");
     const boq = await getRecord(c, d.boqId, "boq");
     if (d.costCode !== boq.data.costCode)
-      throw new Error("Work order cost code must match its BOQ");
+      throw new BadRequestException("Work order cost code must match its BOQ");
     const reserved =
       (await list(c, "workorder"))
         .filter((r) => r.data.boqId === d.boqId)
@@ -31,7 +32,9 @@ export async function contracts(
       Math.round((reserved + d.quantity) * 1000) >
       Math.round((boq.data.quantity + extra) * 1000)
     )
-      throw new Error("Work order exceeds remaining approved BOQ quantity");
+      throw new BadRequestException(
+        "Work order exceeds remaining approved BOQ quantity",
+      );
   }
   if (kind === "bill") {
     const order = await getRecord(c, d.workorderId, "workorder");
@@ -39,12 +42,16 @@ export async function contracts(
       c.actor.role === "CONTRACTOR" &&
       c.actor.contractorId !== order.data.contractorId
     )
-      throw new Error("Work order is not assigned to your contractor account");
+      throw new BadRequestException(
+        "Work order is not assigned to your contractor account",
+      );
     const committed = (await list(c, "bill"))
       .filter((r) => r.data.workorderId === order.id && r.status !== "REJECTED")
       .reduce((s, r) => s + r.data.quantity, 0);
     if (committed + d.quantity > order.data.quantity)
-      throw new Error("Bill quantity exceeds remaining work order quantity");
+      throw new BadRequestException(
+        "Bill quantity exceeds remaining work order quantity",
+      );
     return {
       ...d,
       contractorId: order.data.contractorId,

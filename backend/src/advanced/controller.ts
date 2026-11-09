@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 import {
   Controller,
   Get,
@@ -156,7 +157,7 @@ export class AdvancedController {
         "worklog",
       ].includes(kind)
     )
-      throw new Error("Unknown export");
+      throw new BadRequestException("Unknown export");
     const rows = s.records
       .filter((r) => r.kind === kind)
       .flatMap((r) => {

@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 import { z } from "zod";
 const text = z.string().trim().min(1).max(300),
   note = z.string().trim().max(4000).default(""),
@@ -238,7 +239,8 @@ export const advancedSchemas = {
 };
 export type AdvancedKind = keyof typeof advancedSchemas;
 export function parseAdvanced(kind: string, input: unknown): any {
-  if (!(kind in advancedSchemas)) throw new Error("Unknown advanced module");
+  if (!(kind in advancedSchemas))
+    throw new BadRequestException("Unknown advanced module");
   return advancedSchemas[kind as AdvancedKind].parse(input);
 }
 export const commandSchema = z

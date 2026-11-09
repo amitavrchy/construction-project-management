@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 export const transitions: Record<string, Record<string, string[]>> = {
   budget: { DRAFT: ["SUBMITTED"], SUBMITTED: ["APPROVED", "REJECTED"] },
   requisition: {
@@ -17,7 +18,9 @@ export const transitions: Record<string, Record<string, string[]>> = {
 };
 export function assertTransition(kind: string, from: string, to: string) {
   if (!transitions[kind]?.[from]?.includes(to))
-    throw new Error(`Cannot change ${kind} from ${from} to ${to}`);
+    throw new BadRequestException(
+      `Cannot change ${kind} from ${from} to ${to}`,
+    );
 }
 export const projectTransitions: Record<string, string[]> = {
   PLANNING: ["ACTIVE", "CANCELLED"],

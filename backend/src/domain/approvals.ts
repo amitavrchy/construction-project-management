@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 import { Context, Data, getRecord, list, cost, audit } from "./context";
 import { assertTransition } from "./states";
 import { canApprove, canWrite } from "./access";
@@ -15,13 +16,13 @@ export async function approve(
     ["SUBMITTED", "APPROVED"].includes(target) &&
     (await list(c, "budgetrelease")).some((b) => b.status === "APPROVED")
   )
-    throw new Error(
+    throw new BadRequestException(
       "This project uses full budget versions. Revise the approved version to change the baseline.",
     );
   if (target === "SUBMITTED" || target === "CANCELLED") {
     canWrite(c.actor, r.kind);
     if (c.actor.role === "CONTRACTOR" && r.createdBy !== c.actor.id)
-      throw new Error("Cannot submit another contractor bill");
+      throw new BadRequestException("Cannot submit another contractor bill");
   } else if (r.kind === "transfer") canWrite(c.actor, "transfer");
   else {
     canApprove(c.actor, r.kind, target);
@@ -29,9 +30,13 @@ export async function approve(
       ["APPROVED", "PM_APPROVED", "ACCOUNTS_APPROVED"].includes(target) &&
       r.createdBy === c.actor.id
     )
-      throw new Error("A different person must approve this record");
+      throw new BadRequestException(
+        "A different person must approve this record",
+      );
     if (target === "ACCOUNTS_APPROVED" && r.data.pmApprovedBy === c.actor.id)
-      throw new Error("PM and Accounts approvals must be separate people");
+      throw new BadRequestException(
+        "PM and Accounts approvals must be separate people",
+      );
   }
   let data: Data = { ...r.data, lastDecisionNote: note };
   if (target === "APPROVED" && r.kind === "requisition") {
@@ -47,7 +52,7 @@ export async function approve(
         Number(process.env.REQUISITION_APPROVAL_LIMIT_MINOR || 10000000) &&
       c.actor.role !== "COMPANY_ADMIN"
     )
-      throw new Error(
+      throw new BadRequestException(
         "Amount exceeds PM threshold; company admin approval required",
       );
   }
@@ -57,7 +62,7 @@ export async function approve(
         Number(process.env.BILL_APPROVAL_LIMIT_MINOR || 100000000) &&
       c.actor.role !== "COMPANY_ADMIN"
     )
-      throw new Error("Bill exceeds PM approval threshold");
+      throw new BadRequestException("Bill exceeds PM approval threshold");
     data.pmApprovedBy = c.actor.id;
   }
   if (r.kind === "bill" && target === "ACCOUNTS_APPROVED")

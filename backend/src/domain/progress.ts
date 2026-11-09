@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 import { Context, Data, getRecord, list } from "./context";
 export async function progress(
   c: Context,
@@ -17,18 +18,20 @@ export async function progress(
     .filter((r) => r.data.boqId === d.boqId)
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
   if (d.quantity > total)
-    throw new Error(
+    throw new BadRequestException(
       "Progress exceeds approved quantity. Approve a variation first.",
     );
   if (d.quantity < (previous?.data.quantity || 0))
-    throw new Error("Cumulative progress cannot decrease");
+    throw new BadRequestException("Cumulative progress cannot decrease");
   const percent = Math.round((d.quantity / total) * 10000) / 100;
   if (percent - (previous?.data.percent || 0) > 15 && !d.photo)
-    throw new Error("Photo evidence required for progress jumps above 15%");
+    throw new BadRequestException(
+      "Photo evidence required for progress jumps above 15%",
+    );
   if (
     d.photo &&
     !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(d.photo)
   )
-    throw new Error("Upload a PNG, JPEG or WebP photo");
+    throw new BadRequestException("Upload a PNG, JPEG or WebP photo");
   return { ...d, percent, approvedQuantity: total };
 }

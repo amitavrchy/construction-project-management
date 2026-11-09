@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 import { Context, Data, getRecord, requireSite, list } from "./context";
 import { wage, minor } from "./money";
 import { workerPay } from "./payroll";
@@ -14,9 +15,11 @@ export async function labor(c: Context, kind: string, d: Data): Promise<Data> {
           d.date <= r.data.periodEnd,
       )
     )
-      throw new Error("Attendance period already belongs to a wage run");
+      throw new BadRequestException(
+        "Attendance period already belongs to a wage run",
+      );
     if (d.status === "ABSENT" && d.otHours > 0)
-      throw new Error("Absent workers cannot record overtime");
+      throw new BadRequestException("Absent workers cannot record overtime");
   }
   if (kind === "wage") {
     await requireSite(c, d.siteId);
@@ -29,7 +32,7 @@ export async function labor(c: Context, kind: string, d: Data): Promise<Data> {
           d.periodEnd >= r.data.periodStart,
       )
     )
-      throw new Error("Overlapping wage period");
+      throw new BadRequestException("Overlapping wage period");
     const attendance = (await list(c, "attendance")).filter(
       (r) =>
         r.data.siteId === d.siteId &&
@@ -44,7 +47,7 @@ export async function labor(c: Context, kind: string, d: Data): Promise<Data> {
         r.data.date <= d.periodEnd,
     );
     if (!attendance.length && !worklogs.length)
-      throw new Error(
+      throw new BadRequestException(
         "No attendance or certified piecework in selected period",
       );
     const breakdown: Data[] = [];

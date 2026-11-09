@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import {
   Context,
@@ -53,7 +54,7 @@ export async function advancedMaterials(
   if (kind === "delivery") {
     const order = await getRecord(c, d.purchaseorderId, "purchaseorder");
     if (!["APPROVED", "PARTIAL_RECEIVED"].includes(order.status))
-      throw new Error(
+      throw new BadRequestException(
         "Purchase order must be approved and have remaining quantities",
       );
     const duplicates = [
@@ -64,7 +65,8 @@ export async function advancedMaterials(
         r.data.supplierId === order.data.supplierId &&
         r.data.invoiceNo?.toLowerCase() === d.invoiceNo.toLowerCase(),
     );
-    if (duplicates) throw new Error("Supplier invoice was already received");
+    if (duplicates)
+      throw new BadRequestException("Supplier invoice was already received");
     const lines = [];
     const updated = order.data.lines.map((l: Data) => ({ ...l }));
     for (const line of d.lines) {
@@ -74,7 +76,9 @@ export async function advancedMaterials(
         Math.round((source.received + line.quantity) * 1000) >
           Math.round(source.quantity * 1000)
       )
-        throw new Error("Delivery exceeds remaining purchase order quantity");
+        throw new BadRequestException(
+          "Delivery exceeds remaining purchase order quantity",
+        );
       const where = {
         siteId_materialId: {
           siteId: order.data.siteId,
@@ -126,7 +130,7 @@ export async function advancedMaterials(
   if (kind === "dispatch") {
     const request = await getRecord(c, d.requestId, "materialrequest");
     if (!["APPROVED", "PARTIAL_ISSUED"].includes(request.status))
-      throw new Error("Material request must be approved");
+      throw new BadRequestException("Material request must be approved");
     let currentValue = 0;
     for (const line of request.data.lines) {
       const stock = await c.tx.stock.findUnique({
@@ -145,7 +149,7 @@ export async function advancedMaterials(
         "COMPANY_ADMIN" &&
       request.data.approvedRole !== "COMPANY_ADMIN"
     )
-      throw new Error(
+      throw new BadRequestException(
         "Valuation or approval policy changed. Reauthorize this material request before issuing.",
       );
     const updated = request.data.lines.map((l: Data) => ({ ...l })),
@@ -158,7 +162,9 @@ export async function advancedMaterials(
         Math.round((source.issued + line.quantity) * 1000) >
           Math.round(source.quantity * 1000)
       )
-        throw new Error("Issue exceeds outstanding request quantity");
+        throw new BadRequestException(
+          "Issue exceeds outstanding request quantity",
+        );
       const where = {
         siteId_materialId: {
           siteId: request.data.siteId,
@@ -167,7 +173,9 @@ export async function advancedMaterials(
       };
       const stock = await c.tx.stock.findUnique({ where });
       if (!stock || Number(stock.quantity) < line.quantity)
-        throw new Error(`Insufficient stock for ${source.materialName}`);
+        throw new BadRequestException(
+          `Insufficient stock for ${source.materialName}`,
+        );
       const amountMinor = minor(line.quantity * stock.averageCostMinor);
       await c.tx.stock.update({
         where,
@@ -229,7 +237,9 @@ export async function advancedMaterials(
         Math.round((returned + line.quantity) * 1000) >
           Math.round(source.quantity * 1000)
       )
-        throw new Error("Return exceeds original dispatch quantity");
+        throw new BadRequestException(
+          "Return exceeds original dispatch quantity",
+        );
       const where = {
         siteId_materialId: {
           siteId: dispatch.data.siteId,

@@ -1,6 +1,7 @@
+import { BadRequestException } from "@nestjs/common";
 export function minor(value: number) {
   if (!Number.isFinite(value) || Math.abs(value) > 2_000_000_000)
-    throw new Error("Amount exceeds supported range");
+    throw new BadRequestException("Amount exceeds supported range");
   return Math.round(value);
 }
 export function billTotal(
@@ -15,7 +16,7 @@ export function billTotal(
     retention = minor((gross * retentionBps) / 10000),
     tax = minor((gross * taxBps) / 10000);
   const net = gross - retention - tax - advance - penalty;
-  if (net < 0) throw new Error("Deductions exceed gross bill");
+  if (net < 0) throw new BadRequestException("Deductions exceed gross bill");
   return { gross, retention, tax, advance, penalty, net };
 }
 export function wage(
@@ -35,6 +36,7 @@ export function movingAverage(
   received: number,
   cost: number,
 ) {
-  if (received <= 0) throw new Error("Receipt quantity must be positive");
+  if (received <= 0)
+    throw new BadRequestException("Receipt quantity must be positive");
   return minor((oldQty * oldCost + received * cost) / (oldQty + received));
 }

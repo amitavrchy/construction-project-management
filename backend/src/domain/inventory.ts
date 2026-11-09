@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 import { Context, Data, getRecord, requireSite, list, cost } from "./context";
 import { movingAverage, minor } from "./money";
 export async function inventory(
@@ -21,7 +22,9 @@ export async function inventory(
         r.data.invoiceNo.toLowerCase() === d.invoiceNo.toLowerCase(),
     );
     if (duplicate)
-      throw new Error("Supplier invoice has already been received");
+      throw new BadRequestException(
+        "Supplier invoice has already been received",
+      );
     const where = {
       siteId_materialId: { siteId: d.siteId, materialId: d.materialId },
     };
@@ -46,10 +49,14 @@ export async function inventory(
   if (kind === "issue") {
     const req = await getRecord(c, d.requisitionId, "requisition");
     if (!["APPROVED", "PARTIAL_ISSUED"].includes(req.status))
-      throw new Error("Requisition must be approved before issue");
+      throw new BadRequestException(
+        "Requisition must be approved before issue",
+      );
     const issued = Number(req.data.issued || 0);
     if (issued + d.quantity > req.data.quantity)
-      throw new Error("Issue exceeds remaining requisition quantity");
+      throw new BadRequestException(
+        "Issue exceeds remaining requisition quantity",
+      );
     const where = {
       siteId_materialId: {
         siteId: req.data.siteId,
@@ -58,7 +65,9 @@ export async function inventory(
     };
     const stock = await c.tx.stock.findUnique({ where });
     if (!stock || Number(stock.quantity) < d.quantity)
-      throw new Error("Insufficient stock. Receive materials before issuing.");
+      throw new BadRequestException(
+        "Insufficient stock. Receive materials before issuing.",
+      );
     const value = minor(d.quantity * stock.averageCostMinor);
     await c.tx.stock.update({
       where,
@@ -90,7 +99,9 @@ export async function inventory(
       .filter((r) => r.data.issueId === issue.id)
       .reduce((s, r) => s + r.data.quantity, 0);
     if (d.quantity + returned > issue.data.quantity)
-      throw new Error("Return exceeds originally issued quantity");
+      throw new BadRequestException(
+        "Return exceeds originally issued quantity",
+      );
     const where = {
       siteId_materialId: {
         siteId: issue.data.siteId,
@@ -119,13 +130,13 @@ export async function inventory(
   if (kind === "transfer") {
     await requireSite(c, d.destinationSiteId);
     if (d.destinationSiteId === d.siteId)
-      throw new Error("Choose a different destination site");
+      throw new BadRequestException("Choose a different destination site");
     const where = {
       siteId_materialId: { siteId: d.siteId, materialId: d.materialId },
     };
     const stock = await c.tx.stock.findUnique({ where });
     if (!stock || Number(stock.quantity) < d.quantity)
-      throw new Error("Insufficient transfer stock");
+      throw new BadRequestException("Insufficient transfer stock");
     await c.tx.stock.update({
       where,
       data: { quantity: { decrement: d.quantity } },

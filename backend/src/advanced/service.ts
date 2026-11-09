@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 import {
   Injectable,
   Inject,
@@ -42,7 +43,7 @@ export class AdvancedService {
         where: { id: projectId },
       });
       if (["COMPLETED", "CANCELLED"].includes(p.status))
-        throw new Error("This project is closed");
+        throw new BadRequestException("This project is closed");
       return run({ tx, projectId, actor });
     });
   }
@@ -60,7 +61,9 @@ export class AdvancedService {
       },
     });
     if (!user)
-      throw new Error("Owner must be an active member of this project");
+      throw new BadRequestException(
+        "Owner must be an active member of this project",
+      );
   }
   private async prepare(c: Context, kind: string, d: Data, id: string) {
     d = await advancedMaterials(c, kind, d, id);
@@ -68,7 +71,7 @@ export class AdvancedService {
     if (kind === "schedulebaseline") {
       const tasks = await list(c, "task");
       if (!tasks.length)
-        throw new Error(
+        throw new BadRequestException(
           "Create work items before capturing a schedule baseline",
         );
       const previous = (await list(c, "schedulebaseline")).find(
@@ -90,12 +93,16 @@ export class AdvancedService {
       if (d.previousId) {
         const p = await getRecord(c, d.previousId, "budgetrelease");
         if (p.status !== "APPROVED")
-          throw new Error("Only the current approved budget can be revised");
+          throw new BadRequestException(
+            "Only the current approved budget can be revised",
+          );
         previous = p.data;
       } else if (
         (await list(c, "budgetrelease")).some((r) => r.status === "APPROVED")
       )
-        throw new Error("Select the approved budget version to revise");
+        throw new BadRequestException(
+          "Select the approved budget version to revise",
+        );
       const lines = d.lines.map((l: Data) => ({
         ...l,
         previousMinor:
@@ -108,7 +115,8 @@ export class AdvancedService {
       const totalMinor = minor(
         lines.reduce((s: number, l: Data) => s + l.amountMinor, 0),
       );
-      if (totalMinor <= 0) throw new Error("Budget total must be positive");
+      if (totalMinor <= 0)
+        throw new BadRequestException("Budget total must be positive");
       d = {
         ...d,
         lines,
@@ -129,7 +137,8 @@ export class AdvancedService {
       let parent = d.parentId;
       const seen = new Set([id]);
       while (parent) {
-        if (seen.has(parent)) throw new Error("WBS parent cycle detected");
+        if (seen.has(parent))
+          throw new BadRequestException("WBS parent cycle detected");
         seen.add(parent);
         parent = (await getRecord(c, parent, "task")).data.parentId;
       }
@@ -144,7 +153,7 @@ export class AdvancedService {
       await requireSite(c, d.siteId);
       const worker = await getRecord(c, d.workerId, "worker");
       if (worker.data.payBasis !== "CONTRACT")
-        throw new Error(
+        throw new BadRequestException(
           "Piecework logs require a worker with contract pay basis",
         );
       if (
@@ -155,7 +164,7 @@ export class AdvancedService {
             d.date <= r.data.periodEnd,
         )
       )
-        throw new Error("This payroll period is already locked");
+        throw new BadRequestException("This payroll period is already locked");
       d = {
         ...d,
         workerName: worker.data.name,
@@ -191,7 +200,7 @@ export class AdvancedService {
     return this.context(actor, projectId, async (c) => {
       assertAdvancedWrite(c.actor, kind);
       if (kind === "task" && parsed.percent !== 0)
-        throw new Error("New tasks must start at zero progress");
+        throw new BadRequestException("New tasks must start at zero progress");
       const id = randomUUID(),
         data = await this.prepare(c, kind, parsed, id);
       const key = advancedKey(kind, data, id);
@@ -223,7 +232,7 @@ export class AdvancedService {
   async edit(actor: Actor, projectId: string, id: string, input: any) {
     const { expectedVersion, ...body } = input;
     if (!Number.isInteger(expectedVersion))
-      throw new Error("Expected record version is required");
+      throw new BadRequestException("Expected record version is required");
     return this.context(actor, projectId, async (c) => {
       const r = await getRecord(c, id);
       assertAdvancedWrite(c.actor, r.kind);
@@ -235,15 +244,19 @@ export class AdvancedService {
         !["task", "risk", "rfi", "approvalrule"].includes(r.kind) &&
         r.status !== "DRAFT"
       )
-        throw new Error("Submitted and approved records are immutable");
+        throw new BadRequestException(
+          "Submitted and approved records are immutable",
+        );
       if (["DONE", "CLOSED", "ANSWERED"].includes(r.status))
-        throw new Error("Reopen the record before editing");
+        throw new BadRequestException("Reopen the record before editing");
       const parsed = parseAdvanced(r.kind, body);
       const data = await this.prepare(c, r.kind, parsed, id);
       if (["budgetrelease", "schedulebaseline"].includes(r.kind))
         data.versionNumber = r.data.versionNumber;
       if (r.kind === "task" && r.status === "BACKLOG" && data.percent > 0)
-        throw new Error("Move task to In progress before entering completion");
+        throw new BadRequestException(
+          "Move task to In progress before entering completion",
+        );
       const result = await c.tx.record.update({
         where: { id },
         data: {
@@ -305,7 +318,7 @@ export class AdvancedService {
           "rfi",
         ].includes(r.kind)
       )
-        throw new Error(
+        throw new BadRequestException(
           "This record does not use the advanced approval workflow",
         );
       if (r.version !== command.expectedVersion)
@@ -317,7 +330,9 @@ export class AdvancedService {
       if (r.kind === "materialrequest" && target === "REAUTHORIZE") {
         assertAdvancedWrite(c.actor, r.kind);
         if (!["APPROVED", "PARTIAL_ISSUED"].includes(r.status))
-          throw new Error("Only open approved requests can be reauthorized");
+          throw new BadRequestException(
+            "Only open approved requests can be reauthorized",
+          );
         const lines = [];
         for (const line of data.lines) {
           const stock = await c.tx.stock.findUnique({
@@ -363,11 +378,11 @@ export class AdvancedService {
           },
         };
         if (!allowed[r.kind][r.status]?.includes(target))
-          throw new Error("Invalid workflow transition");
+          throw new BadRequestException("Invalid workflow transition");
         if (r.kind === "task" && target === "DONE") {
           for (const dep of data.dependencies)
             if ((await getRecord(c, dep, "task")).status !== "DONE")
-              throw new Error(
+              throw new BadRequestException(
                 "Finish predecessor tasks before completing this task",
               );
           data.percent = 100;
@@ -380,7 +395,7 @@ export class AdvancedService {
           data.percent = 99;
         if (r.kind === "rfi" && target === "ANSWERED") {
           if (!command.note.trim())
-            throw new Error("An RFI answer is required");
+            throw new BadRequestException("An RFI answer is required");
           if (
             data.assignedTo &&
             data.assignedTo !== c.actor.id &&
@@ -402,14 +417,16 @@ export class AdvancedService {
           PM_APPROVED: ["ACCOUNTS_APPROVED", "REJECTED"],
         };
         if (!states[r.status]?.includes(target))
-          throw new Error("Invalid approval transition");
+          throw new BadRequestException("Invalid approval transition");
         if (target === "SUBMITTED") {
           assertAdvancedWrite(c.actor, r.kind);
           if (c.actor.role === "CONTRACTOR" && r.createdBy !== c.actor.id)
             throw new ForbiddenException();
         } else {
           if (r.createdBy === c.actor.id)
-            throw new Error("The originator cannot approve their own record");
+            throw new BadRequestException(
+              "The originator cannot approve their own record",
+            );
           const accounts = r.status === "PM_APPROVED";
           if (accounts) {
             if (
@@ -435,7 +452,7 @@ export class AdvancedService {
               );
           }
           if (target === "REJECTED" && !command.note.trim())
-            throw new Error("Explain the rejection reason");
+            throw new BadRequestException("Explain the rejection reason");
         }
         if (target === "PM_APPROVED") data.pmApprovedBy = c.actor.id;
         if (["APPROVED", "PM_APPROVED"].includes(target))
@@ -463,7 +480,9 @@ export class AdvancedService {
               data.date <= w.data.periodEnd,
           )
         )
-          throw new Error("Payroll already locked this work period");
+          throw new BadRequestException(
+            "Payroll already locked this work period",
+          );
         if (target === "APPROVED" && r.kind === "budgetrelease") {
           const current = (await list(c, "budgetrelease")).filter(
             (b) => b.status === "APPROVED",

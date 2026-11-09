@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { Actor } from "./access";
 export type Tx = Prisma.TransactionClient;
@@ -7,12 +8,15 @@ export async function getRecord(c: Context, id: string, kind?: string) {
   const record = await c.tx.record.findFirst({
     where: { id, projectId: c.projectId, ...(kind ? { kind } : {}) },
   });
-  if (!record) throw new Error(`${kind || "Record"} not found in this project`);
+  if (!record)
+    throw new BadRequestException(
+      `${kind || "Record"} not found in this project`,
+    );
   return { ...record, data: record.data as Data };
 }
 export async function requireSite(c: Context, id: string) {
   if (!(await c.tx.site.findFirst({ where: { id, projectId: c.projectId } })))
-    throw new Error("Site does not belong to this project");
+    throw new BadRequestException("Site does not belong to this project");
 }
 export async function list(c: Context, kind: string) {
   return (

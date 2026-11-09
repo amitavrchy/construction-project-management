@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 import {
   Injectable,
   Inject,
@@ -16,6 +17,7 @@ import { progress } from "./domain/progress";
 import { recordKey } from "./domain/keys";
 import { approve } from "./domain/approvals";
 import { Cache } from "./cache";
+import { validateUpload } from "./uploads";
 @Injectable()
 export class ProjectsService {
   constructor(
@@ -182,19 +184,23 @@ export class ProjectsService {
         where: { id: projectId },
       });
       if (["COMPLETED", "CANCELLED"].includes(project.status))
-        throw new Error("This project is closed");
+        throw new BadRequestException("This project is closed");
       const id = randomUUID();
       let data = await inventory(c, kind, parsed, id);
       data = await labor(c, kind, data);
       data = await contracts(c, kind, data);
       data = await progress(c, kind, data);
+      if (kind === "document") validateUpload(data.content);
+      if (kind === "progress" && data.photo) validateUpload(data.photo, true);
       if (
         kind === "document" &&
         !/^data:(application\/pdf|image\/(png|jpeg|webp));base64,[A-Za-z0-9+/=]+$/.test(
           data.content,
         )
       )
-        throw new Error("Only PDF, PNG, JPEG or WebP files are supported");
+        throw new BadRequestException(
+          "Only PDF, PNG, JPEG or WebP files are supported",
+        );
       if (kind === "budget")
         data.versionNumber =
           (await tx.record.count({
@@ -255,7 +261,7 @@ export class ProjectsService {
         where: { id: projectId },
       });
       if (["COMPLETED", "CANCELLED"].includes(p.status))
-        throw new Error("This project is closed");
+        throw new BadRequestException("This project is closed");
       return approve({ tx, projectId, actor }, id, status, note);
     });
   }
@@ -263,7 +269,7 @@ export class ProjectsService {
     actor = await this.scope(actor, projectId);
     canWrite(actor, "attendance");
     if (!Array.isArray(inputs) || inputs.length < 1 || inputs.length > 200)
-      throw new Error("Submit between 1 and 200 attendance rows");
+      throw new BadRequestException("Submit between 1 and 200 attendance rows");
     const parsed = inputs.map((input) => parseRecord("attendance", input));
     return this.db.atomic(async (tx) => {
       const c = { tx, projectId, actor };
@@ -271,7 +277,7 @@ export class ProjectsService {
         where: { id: projectId },
       });
       if (["COMPLETED", "CANCELLED"].includes(project.status))
-        throw new Error("This project is closed");
+        throw new BadRequestException("This project is closed");
       const result = [];
       for (const input of parsed) {
         const data = await labor(c, "attendance", input);
@@ -309,14 +315,16 @@ export class ProjectsService {
       const c = { tx, projectId, actor };
       const r = await getRecord(c, id, "budget");
       if (r.status !== "DRAFT")
-        throw new Error("Only draft budgets can be edited");
+        throw new BadRequestException("Only draft budgets can be edited");
       const p = await tx.project.findUniqueOrThrow({
         where: { id: projectId },
       });
       if (["COMPLETED", "CANCELLED"].includes(p.status))
-        throw new Error("This project is closed");
+        throw new BadRequestException("This project is closed");
       if (r.data.previousId && parsed.costCode !== r.data.costCode)
-        throw new Error("A revision must keep its original cost code");
+        throw new BadRequestException(
+          "A revision must keep its original cost code",
+        );
       const result = await tx.record.update({
         where: { id },
         data: {
@@ -344,7 +352,7 @@ export class ProjectsService {
       const c = { tx, projectId, actor };
       const r = await getRecord(c, id);
       if (!["worker", "material", "supplier", "contractor"].includes(r.kind))
-        throw new Error("Only catalog records are editable here");
+        throw new BadRequestException("Only catalog records are editable here");
       canWrite(actor, r.kind);
       if (r.version !== expectedVersion)
         throw new ForbiddenException(
@@ -354,7 +362,7 @@ export class ProjectsService {
         where: { id: projectId },
       });
       if (["COMPLETED", "CANCELLED"].includes(project.status))
-        throw new Error("This project is closed");
+        throw new BadRequestException("This project is closed");
       const data = parseRecord(r.kind, payload);
       if (
         r.kind === "worker" &&
@@ -368,7 +376,7 @@ export class ProjectsService {
           },
         });
         if (used)
-          throw new Error(
+          throw new BadRequestException(
             "A worker with attendance or certified work cannot change pay basis",
           );
       }
@@ -400,7 +408,7 @@ export class ProjectsService {
         bill.data.retentionReleasedOn ||
         bill.data.defectsUntil > today
       )
-        throw new Error("Retention is not eligible for release");
+        throw new BadRequestException("Retention is not eligible for release");
       await audit(c, "bill.retention_released", id, {
         amountMinor: bill.data.retention,
       });
@@ -427,9 +435,9 @@ export class ProjectsService {
         where: { id: projectId },
       });
       if (["COMPLETED", "CANCELLED"].includes(p.status))
-        throw new Error("This project is closed");
+        throw new BadRequestException("This project is closed");
       if (source.status !== "APPROVED")
-        throw new Error("Only approved budgets can be revised");
+        throw new BadRequestException("Only approved budgets can be revised");
       const cloneId = randomUUID();
       const result = await tx.record.create({
         data: {

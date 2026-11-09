@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { Context, Data, getRecord, list } from "../domain/context";
 import { minor, billTotal } from "../domain/money";
@@ -13,7 +14,9 @@ export async function advancedContracts(
     for (const line of d.lines) {
       const boq = await getRecord(c, line.boqId, "boq");
       if (line.costCode !== boq.data.costCode)
-        throw new Error("Contract cost code must match the selected BOQ item");
+        throw new BadRequestException(
+          "Contract cost code must match the selected BOQ item",
+        );
       const ordered =
         (await list(c, "contractpackage"))
           .filter((r) => r.id !== id && r.status !== "REJECTED")
@@ -35,7 +38,9 @@ export async function advancedContracts(
         Math.round((ordered + line.quantity) * 1000) >
         Math.round((boq.data.quantity + varied) * 1000)
       )
-        throw new Error("Contract packages exceed the approved BOQ quantity");
+        throw new BadRequestException(
+          "Contract packages exceed the approved BOQ quantity",
+        );
       lines.push({
         ...line,
         lineId: randomUUID(),
@@ -53,24 +58,31 @@ export async function advancedContracts(
   if (kind === "measurementbill") {
     const order = await getRecord(c, d.contractpackageId, "contractpackage");
     if (order.status !== "APPROVED")
-      throw new Error("Contract package must be approved");
+      throw new BadRequestException("Contract package must be approved");
     if (
       c.actor.role === "CONTRACTOR" &&
       c.actor.contractorId !== order.data.contractorId
     )
-      throw new Error("This contract is not assigned to your account");
+      throw new BadRequestException(
+        "This contract is not assigned to your account",
+      );
     const bills = (await list(c, "measurementbill")).filter(
       (r) => r.data.contractpackageId === order.id && r.status !== "REJECTED",
     );
     const recovered = bills.reduce((s, r) => s + r.data.advanceMinor, 0);
     if (recovered + d.advanceMinor > order.data.advanceLimitMinor)
-      throw new Error("Advance recovery exceeds the contract advance limit");
+      throw new BadRequestException(
+        "Advance recovery exceeds the contract advance limit",
+      );
     const lines = [];
     for (const line of d.lines) {
       const source = order.data.lines.find(
         (l: Data) => l.lineId === line.lineId,
       );
-      if (!source) throw new Error("Measurement line is not in this contract");
+      if (!source)
+        throw new BadRequestException(
+          "Measurement line is not in this contract",
+        );
       const previous = bills.reduce(
         (s, r) =>
           s +
@@ -83,7 +95,7 @@ export async function advancedContracts(
         Math.round((previous + line.quantity) * 1000) >
         Math.round(source.quantity * 1000)
       )
-        throw new Error(
+        throw new BadRequestException(
           `Measurement exceeds remaining quantity: ${source.description}`,
         );
       lines.push({
@@ -117,11 +129,11 @@ export async function advancedContracts(
   if (kind === "payment") {
     const bill = await getRecord(c, d.billId, "measurementbill");
     if (!["ACCOUNTS_APPROVED", "PARTIALLY_PAID"].includes(bill.status))
-      throw new Error(
+      throw new BadRequestException(
         "Bill must be Accounts-approved with an outstanding balance",
       );
     if ((bill.data.paidMinor || 0) + d.amountMinor > bill.data.net)
-      throw new Error("Payment exceeds outstanding net payable");
+      throw new BadRequestException("Payment exceeds outstanding net payable");
     const paidMinor = (bill.data.paidMinor || 0) + d.amountMinor;
     await c.tx.record.update({
       where: { id: bill.id },
@@ -148,7 +160,7 @@ export async function advancedContracts(
       bill.data.retentionReleasedOn ||
       bill.data.defectsUntil > today
     )
-      throw new Error("Retention is not eligible for release");
+      throw new BadRequestException("Retention is not eligible for release");
     await c.tx.record.update({
       where: { id: bill.id },
       data: {

@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 import { z } from "zod";
 const text = z.string().trim().min(1).max(200);
 const note = z.string().trim().max(2000).default("");
@@ -172,6 +173,6 @@ export const schemas = {
 };
 export type Kind = keyof typeof schemas;
 export function parseRecord(kind: string, data: unknown): any {
-  if (!(kind in schemas)) throw new Error("Unknown record type");
+  if (!(kind in schemas)) throw new BadRequestException("Unknown record type");
   return schemas[kind as Kind].parse(data);
 }

@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 type Task = { id: string; data: Record<string, any>; status: string };
 const day = 86400000;
 export function criticalPath(tasks: Task[]) {
@@ -6,12 +7,16 @@ export function criticalPath(tasks: Task[]) {
     visiting = new Set<string>(),
     visited = new Set<string>();
   function visit(t: Task) {
-    if (visiting.has(t.id)) throw new Error("Task dependency cycle detected");
+    if (visiting.has(t.id))
+      throw new BadRequestException("Task dependency cycle detected");
     if (visited.has(t.id)) return;
     visiting.add(t.id);
     for (const id of t.data.dependencies || []) {
       const dep = map.get(id);
-      if (!dep) throw new Error("Dependency does not belong to this project");
+      if (!dep)
+        throw new BadRequestException(
+          "Dependency does not belong to this project",
+        );
       visit(dep);
     }
     visiting.delete(t.id);

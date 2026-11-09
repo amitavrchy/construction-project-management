@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 import {
   Controller,
   Get,
@@ -151,7 +152,7 @@ export class ProjectsController {
     return this.service.db.atomic(async (tx) => {
       const p = await tx.project.findUniqueOrThrow({ where: { id } });
       if (!projectTransitions[p.status]?.includes(status))
-        throw new Error("Invalid project status transition");
+        throw new BadRequestException("Invalid project status transition");
       await tx.audit.create({
         data: {
           projectId: id,
@@ -206,7 +207,7 @@ export class ProjectsController {
       rows = s.records
         .filter((r) => r.kind === "attendance")
         .map((r) => ({ id: r.id, ...(r.data as any) }));
-    else throw new Error("Unknown report");
+    else throw new BadRequestException("Unknown report");
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader(
       "Content-Disposition",
