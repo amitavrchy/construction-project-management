@@ -15,7 +15,7 @@ for (const width of [360, 768, 1280, 1920]) {
     const railWidth = await page
       .locator(".sc-nav")
       .evaluate((element) => element.getBoundingClientRect().width);
-    expect(railWidth).toBeCloseTo(width * 0.9, 0);
+    expect(railWidth).toBeCloseTo(width * 0.8, 0);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       "Build witha clearerpicture.",
     );
@@ -105,15 +105,15 @@ test("motion scrubs only with scroll, reverses, pauses and respects reduced moti
   // Deliberately sample elapsed time to catch accidental autoplay.
   await page.waitForTimeout(180);
   expect(await transform()).toBe(initial);
-  await page.evaluate(() => window.scrollTo(0, 320));
+  await page.evaluate(() => window.scrollTo({ top: 320, behavior: "instant" }));
   await expect.poll(transform).not.toBe(initial);
   const scrolled = await transform();
   await page.waitForTimeout(180);
   expect(await transform()).toBe(scrolled);
-  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
   await expect.poll(transform).toBe(initial);
   await pause.click();
-  await page.evaluate(() => window.scrollTo(0, 480));
+  await page.evaluate(() => window.scrollTo({ top: 480, behavior: "instant" }));
   await page.waitForTimeout(100);
   expect(await transform()).toBe(initial);
   await page
@@ -125,7 +125,8 @@ test("motion scrubs only with scroll, reverses, pauses and respects reduced moti
     (element) => element.getBoundingClientRect().top + window.scrollY,
   );
   await page.evaluate(
-    (top) => window.scrollTo(0, top - innerHeight * 0.9),
+    (top) =>
+      window.scrollTo({ top: top - innerHeight * 0.9, behavior: "instant" }),
     featureTop,
   );
   await page.evaluate(
@@ -137,7 +138,7 @@ test("motion scrubs only with scroll, reverses, pauses and respects reduced moti
   const before = await feature.evaluate(
     (element) => getComputedStyle(element).transform,
   );
-  await page.evaluate(() => window.scrollBy(0, 220));
+  await page.evaluate(() => window.scrollBy({ top: 220, behavior: "instant" }));
   await expect
     .poll(() =>
       feature.evaluate((element) => getComputedStyle(element).transform),
@@ -157,3 +158,125 @@ test("motion scrubs only with scroll, reverses, pauses and respects reduced moti
     ),
   ).toBe(0);
 });
+
+for (const width of [360, 1280]) {
+  test(`section links and FAQ expand/collapse transition smoothly at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.goto("/");
+    await expect(
+      page.getByRole("button", { name: "Pause motion", exact: true }),
+    ).toBeVisible();
+    await page.locator('header a[href="#platform"]').click();
+    const target = page.locator("#platform");
+    const destination = await target.evaluate(
+      (element) =>
+        element.getBoundingClientRect().top +
+        scrollY -
+        parseFloat(getComputedStyle(element).scrollMarginTop),
+    );
+    await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
+    expect(await page.evaluate(() => scrollY)).toBeLessThan(destination - 5);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          (destination) => Math.abs(scrollY - destination),
+          destination,
+        ),
+      )
+      .toBeLessThan(2);
+    await expect(page).toHaveURL(/#platform$/);
+    await page.locator('header a[href="#questions"]').click();
+    const faqDestination = await page
+      .locator("#questions")
+      .evaluate(
+        (element) =>
+          element.getBoundingClientRect().top +
+          scrollY -
+          parseFloat(getComputedStyle(element).scrollMarginTop),
+      );
+    await expect
+      .poll(() =>
+        page.evaluate(
+          (destination) => Math.abs(scrollY - destination),
+          faqDestination,
+        ),
+      )
+      .toBeLessThan(2);
+    const details = page.locator(".sc-faq details").first();
+    const summary = details.locator("summary");
+    const activateSummary = async () => {
+      const box = await summary.boundingBox();
+      if (!box) throw new Error("FAQ summary must be visible");
+      await page.mouse.click(box.x + 20, box.y + Math.min(20, box.height / 2));
+    };
+    const collapsed = await details.evaluate(
+      (element) => element.getBoundingClientRect().height,
+    );
+    await activateSummary();
+    expect(
+      await details.evaluate((element) =>
+        element
+          .getAnimations()
+          .some((animation) => animation.playState === "running"),
+      ),
+    ).toBe(true);
+    await expect
+      .poll(() =>
+        details.evaluate((element) => element.getBoundingClientRect().height),
+      )
+      .toBeGreaterThan(collapsed + 8);
+    await details.evaluate((element) =>
+      Promise.all(
+        element
+          .getAnimations()
+          .map((animation) => animation.finished.catch(() => {})),
+      ),
+    );
+    await activateSummary();
+    expect(
+      await details.evaluate((element) => (element as HTMLDetailsElement).open),
+    ).toBe(true);
+    await expect
+      .poll(() =>
+        details.evaluate((element) => (element as HTMLDetailsElement).open),
+      )
+      .toBe(false);
+    expect(
+      await details.evaluate(
+        (element) => element.getBoundingClientRect().height,
+      ),
+    ).toBeCloseTo(collapsed, 0);
+    // Changing direction during a transition must settle at the latest requested state.
+    await activateSummary();
+    await activateSummary();
+    await activateSummary();
+    await details.evaluate((element) =>
+      Promise.all(
+        element
+          .getAnimations()
+          .map((animation) => animation.finished.catch(() => {})),
+      ),
+    );
+    expect(
+      await details.evaluate((element) => (element as HTMLDetailsElement).open),
+    ).toBe(true);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => getComputedStyle(document.documentElement).scrollBehavior,
+        ),
+      )
+      .toBe("auto");
+    await activateSummary();
+    expect(
+      await details.evaluate((element) => (element as HTMLDetailsElement).open),
+    ).toBe(false);
+    expect(
+      await details.evaluate((element) => element.getAnimations().length),
+    ).toBe(0);
+  });
+}

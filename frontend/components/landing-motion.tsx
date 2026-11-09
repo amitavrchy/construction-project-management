@@ -120,12 +120,14 @@ export function LandingMotion() {
     });
     window.addEventListener("scroll", schedule, { passive: true });
     window.addEventListener("resize", measure);
+    root.addEventListener("landing-layout-change", measure);
     preference.addEventListener("change", measure);
     return () => {
       disposed = true;
       cancelAnimationFrame(frame);
       window.removeEventListener("scroll", schedule);
       window.removeEventListener("resize", measure);
+      root.removeEventListener("landing-layout-change", measure);
       preference.removeEventListener("change", measure);
       scheduleRef.current = null;
       clear();

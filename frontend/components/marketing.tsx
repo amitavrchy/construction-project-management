@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import "./marketing.css";
 import { LandingMotion } from "./landing-motion";
+import { LandingInteractions } from "./landing-interactions";
 function Brand() {
   return (
     <Link className="sc-brand" href="/" aria-label="Sitecraft home">
@@ -165,6 +166,7 @@ export function Marketing() {
   return (
     <div className="sc-marketing">
       <LandingMotion />
+      <LandingInteractions />
       <a className="sc-skip" href="#sc-main">
         Skip to content
       </a>

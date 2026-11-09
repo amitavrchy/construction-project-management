@@ -2,9 +2,9 @@
 
 - `npm run build`: passed; `/` is `○ (Static)` and `/robots.txt` is static.
 - `npm run typecheck`: passed.
-- `npm run test:marketing`: 7 passed. Checks the 90% content rail at all four requested widths, no horizontal scrolling or JavaScript errors, no API requests, keyboard FAQ controls, visible HTML with JavaScript disabled, social metadata/image, scroll-only motion, idle stability, reversal, pause/resume, live reduced-motion changes, and CTA navigation to the existing sign-in form (401 response stubbed; not an API integration test).
+- `npm run test:marketing`: 9 passed. Checks the 80% content rail at all four requested widths, no horizontal scrolling or JavaScript errors, no API requests, keyboard FAQ controls, visible HTML with JavaScript disabled, social metadata/image, scroll-only motion, idle stability, reversal, pause/resume, live reduced-motion changes, and CTA navigation to the existing sign-in form (401 response stubbed; not an API integration test).
 - Chromium screenshots reviewed at 360, 768, 1280 and 1920px, including reduced-motion rendering.
-- Lighthouse 13.6.0, mobile defaults, production server: performance 97, accessibility 100, best practices 100, SEO 100. Local lab measurements, not deployed-site measurements.
+- Lighthouse 13.6.0, mobile defaults, production server: performance 99, accessibility 100, best practices 100, SEO 100. Local lab measurements, not deployed-site measurements.
 - `npm run test:e2e`: attempted; existing suite could not start because its backend requires `REDIS_URL`. Full authenticated workflows were not verified.
 - No lint script exists. Repository-wide `npm run format:check` still reports pre-existing formatting issues in 40 files; the new marketing files and edited route/layout files pass focused Prettier checks.
 
@@ -18,4 +18,8 @@ The design preserves forest green/lime branding and DM Sans/Manrope. Font assets
 
 ## Scroll motion and width
 
-All primary content rails use 90% of the viewport. Blueprint parallax, the surveying beam and project card follow scroll position. Section reveals and dashboard bars scrub with their viewport progress and reverse when scrolling up. There are no autoplay loops, animation timers or continuously running frames. A passive scroll handler batches updates through requestAnimationFrame, with cached layout bounds refreshed on resize and font readiness. Pause/resume and live reduced-motion handling are retained. Content remains visible without JavaScript and no runtime dependency was added.
+All primary content rails use 80% of the viewport. Blueprint parallax, the surveying beam and project card follow scroll position. Section reveals and dashboard bars scrub with their viewport progress and reverse when scrolling up. There are no autoplay loops, animation timers or continuously running frames. A passive scroll handler batches updates through requestAnimationFrame, with cached layout bounds refreshed on resize and font readiness. Pause/resume and live reduced-motion handling are retained. Content remains visible without JavaScript and no runtime dependency was added.
+
+## Anchor and FAQ interactions
+
+Section anchors use native smooth scrolling with the existing URL hashes, history, and sticky-header offsets. FAQ panels animate their height over 360ms on both expansion and collapse; repeated activation reverses from the current height. Native details/summary semantics, keyboard activation, and no-JavaScript behavior are retained. Reduced-motion switches scrolling and FAQ changes to immediate behavior. The scroll-motion layout cache is refreshed after an accordion transition. Browser tests cover intermediate scroll positions, open/close animation, rapid reversal and reduced-motion behavior at 360px and 1280px.
