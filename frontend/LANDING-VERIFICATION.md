@@ -23,3 +23,7 @@ All primary content rails use 80% of the viewport. Blueprint parallax, the surve
 ## Anchor and FAQ interactions
 
 Section anchors use native smooth scrolling with the existing URL hashes, history, and sticky-header offsets. FAQ panels animate their height over 360ms on both expansion and collapse; repeated activation reverses from the current height. Native details/summary semantics, keyboard activation, and no-JavaScript behavior are retained. Reduced-motion switches scrolling and FAQ changes to immediate behavior. The scroll-motion layout cache is refreshed after an accordion transition. Browser tests cover intermediate scroll positions, open/close animation, rapid reversal and reduced-motion behavior at 360px and 1280px.
+
+## Minimum text sizes
+
+Paragraphs are at least 14px and all other text is at least 12px, including mockups, badges, captions, navigation, and footer labels. Larger existing body and heading sizes are preserved. Browser tests assert computed text sizes at 360, 768, 1280 and 1920px. Chromium inspection found minimum paragraph/text sizes of 14px/12px at every width, with no horizontal text clipping or document overflow. Mobile navigation and diagram labels were adjusted to accommodate the larger text.

@@ -8,6 +8,7 @@
   font-size: 15px;
 }
 .sc-marketing p {
+  font-size: 15px;
   color: var(--sc-muted);
   line-height: 1.8;
 }
@@ -116,7 +117,7 @@
   align-items: center;
 }
 .sc-kicker {
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 1.8px;
   font-weight: 650;
   display: inline-flex;
@@ -167,7 +168,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 10px;
+  font-size: 12px;
   color: #5b6f61;
   margin-top: 22px;
 }
@@ -223,7 +224,7 @@
   position: absolute;
   top: 26px;
   left: 24px;
-  font-size: 8px;
+  font-size: 12px;
   letter-spacing: 1.7px;
   color: #c4d6b9;
 }
@@ -231,7 +232,7 @@
   position: absolute;
   bottom: 27px;
   right: 24px;
-  font-size: 8px;
+  font-size: 12px;
   letter-spacing: 1.3px;
   color: #bfd2b6;
 }
@@ -263,7 +264,7 @@
   font-size: 13px;
 }
 .sc-floating-card p {
-  font-size: 10px;
+  font-size: 14px;
   margin-top: 2px;
 }
 .sc-floating-card > svg {
@@ -271,7 +272,7 @@
   color: #196c50;
 }
 .sc-visual-caption {
-  font-size: 8px;
+  font-size: 12px;
   letter-spacing: 1.6px;
   text-align: right;
   margin-top: 30px;
@@ -288,7 +289,7 @@
   padding: 27px 0;
 }
 .sc-discipline-strip > span:first-child {
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 1px;
   line-height: 1.8;
   display: block;
@@ -362,11 +363,11 @@
   color: #196c50;
 }
 .sc-feature-top > span {
-  font-size: 10px;
+  font-size: 12px;
   color: #72816b;
 }
 .sc-card-tag {
-  font-size: 8px;
+  font-size: 12px;
   letter-spacing: 1.1px;
   color: #4f6a53;
   font-weight: 600;
@@ -377,7 +378,7 @@
   letter-spacing: -0.8px;
 }
 .sc-feature-grid p {
-  font-size: 13px;
+  font-size: 14px;
 }
 .sc-showcase {
   background: #eaf0e2;
@@ -418,7 +419,7 @@
   letter-spacing: -0.7px;
 }
 .sc-preview-top > span:nth-child(2) {
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 1.6px;
   color: #5f725f;
 }
@@ -430,7 +431,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 8px;
+  font-size: 12px;
 }
 .sc-preview-body {
   display: grid;
@@ -460,7 +461,7 @@
   align-items: center;
 }
 .sc-preview-heading > div > span {
-  font-size: 8px;
+  font-size: 12px;
   letter-spacing: 1.6px;
   color: #5e725f;
 }
@@ -469,7 +470,7 @@
   margin-top: 5px;
 }
 .sc-preview-tag {
-  font-size: 9px;
+  font-size: 12px;
   background: #e7eee0;
   color: #4b664c;
   border: 1px solid #d7e3cd;
@@ -500,12 +501,12 @@
   margin: 8px 0;
 }
 .sc-project-banner > div > span {
-  font-size: 8px;
+  font-size: 12px;
   letter-spacing: 1px;
   color: #c6d7b7;
 }
 .sc-project-banner p {
-  font-size: 10px;
+  font-size: 14px;
   color: #c7d5c3;
   display: flex;
   align-items: center;
@@ -526,7 +527,7 @@
   font-size: 16px;
 }
 .sc-completion > span {
-  font-size: 9px !important;
+  font-size: 12px !important;
   letter-spacing: 0 !important;
 }
 .sc-preview-stats {
@@ -543,7 +544,7 @@
 }
 .sc-preview-stats span {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   color: #586b59;
   margin-bottom: 5px;
 }
@@ -572,7 +573,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 8px;
+  font-size: 12px;
   color: #576d58;
   margin-top: 12px;
 }
@@ -596,7 +597,7 @@
 .sc-chart-bars > div {
   flex: 1;
   text-align: center;
-  font-size: 8px;
+  font-size: 12px;
   color: #586d59;
 }
 .sc-chart-bars > div > div {
@@ -621,7 +622,7 @@
   margin-top: 20px;
 }
 .sc-preview-progress > div > span {
-  font-size: 10px;
+  font-size: 12px;
   display: flex;
   justify-content: space-between;
   margin-bottom: 7px;
@@ -645,12 +646,12 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 9px;
+  font-size: 12px;
   color: #55754d;
   margin-top: 20px;
 }
 .sc-project-preview figcaption {
-  font-size: 9px;
+  font-size: 12px;
   text-align: center;
   padding: 10px;
   color: #5c6e57;
@@ -661,7 +662,7 @@
   justify-content: center;
   gap: 40px;
   margin-top: 25px;
-  font-size: 11px;
+  font-size: 12px;
   color: #446345;
 }
 .sc-showcase-notes span {
@@ -759,7 +760,7 @@
   letter-spacing: -0.5px;
 }
 .sc-personas p {
-  font-size: 13px;
+  font-size: 14px;
   margin-top: 8px;
 }
 .sc-faq {
@@ -825,7 +826,7 @@
   gap: 15px;
 }
 .sc-final > div:last-child > span {
-  font-size: 10px;
+  font-size: 12px;
   color: #536748;
 }
 .sc-button-lime {
@@ -841,7 +842,7 @@
   flex-wrap: wrap;
 }
 .sc-footer > div > p {
-  font-size: 12px;
+  font-size: 14px;
   margin-top: 15px;
 }
 .sc-footer nav {
@@ -863,7 +864,7 @@
   display: flex;
   justify-content: space-between;
   gap: 20px;
-  font-size: 10px;
+  font-size: 12px;
   color: #52664f;
 }
 .sc-skip {
@@ -949,7 +950,7 @@
     font-size: 12px;
   }
   .sc-access-note {
-    font-size: 9px;
+    font-size: 12px;
   }
   .sc-drawing {
     aspect-ratio: 1/1.5;
@@ -961,7 +962,7 @@
   }
   .sc-drawing-label,
   .sc-drawing-scale {
-    font-size: 6px;
+    font-size: 12px;
   }
   .sc-floating-card {
     left: -18px;
@@ -970,13 +971,13 @@
     gap: 9px;
   }
   .sc-floating-card strong {
-    font-size: 11px;
+    font-size: 12px;
   }
   .sc-floating-card > svg {
     margin-left: 0;
   }
   .sc-visual-caption {
-    font-size: 6px;
+    font-size: 12px;
     letter-spacing: 1px;
   }
   .sc-discipline-strip {
@@ -988,7 +989,7 @@
     gap: 6px;
   }
   .sc-discipline-strip > span:first-child {
-    font-size: 7px;
+    font-size: 12px;
   }
   .sc-discipline-strip svg {
     width: 17px;
@@ -1003,7 +1004,7 @@
   .sc-section-heading > p,
   .sc-section-heading > div:last-child:not(:first-child) {
     max-width: 300px;
-    font-size: 13px;
+    font-size: 14px;
   }
   .sc-section h2,
   .sc-showcase h2,
@@ -1037,7 +1038,7 @@
     font-size: 19px;
   }
   .sc-steps p {
-    font-size: 13px;
+    font-size: 14px;
   }
   .sc-people {
     padding: 60px 30px;
@@ -1057,10 +1058,10 @@
     font-size: 40px;
   }
   .sc-final p {
-    font-size: 12px;
+    font-size: 14px;
   }
   .sc-final > div:last-child > span {
-    font-size: 8px;
+    font-size: 12px;
   }
   .sc-footer {
     padding-inline: 30px;
@@ -1089,7 +1090,7 @@
     gap: 15px;
   }
   .sc-button-small {
-    font-size: 11px;
+    font-size: 12px;
     padding: 9px 12px;
     min-height: 36px;
     gap: 9px;
@@ -1101,7 +1102,7 @@
     border-top: 1px solid #173c2e15;
     padding-top: 12px;
     gap: 30px;
-    font-size: 11px;
+    font-size: 12px;
   }
   .sc-hero {
     grid-template-columns: 1fr;
@@ -1109,7 +1110,7 @@
     gap: 40px;
   }
   .sc-kicker {
-    font-size: 8px;
+    font-size: 12px;
     letter-spacing: 1.5px;
   }
   .sc-hero h1 {
@@ -1126,7 +1127,7 @@
     margin-top: 25px;
   }
   .sc-access-note {
-    font-size: 9px;
+    font-size: 12px;
     margin-top: 18px;
   }
   .sc-hero-visual {
@@ -1143,12 +1144,12 @@
     top: 13%;
   }
   .sc-drawing-label {
-    font-size: 6px;
+    font-size: 12px;
     top: 20px;
     left: 20px;
   }
   .sc-drawing-scale {
-    font-size: 6px;
+    font-size: 12px;
     bottom: 20px;
     right: 20px;
   }
@@ -1158,7 +1159,7 @@
     padding: 12px 15px;
   }
   .sc-visual-caption {
-    font-size: 6px;
+    font-size: 12px;
     margin-top: 23px;
   }
   .sc-discipline-strip {
@@ -1171,7 +1172,7 @@
   .sc-discipline-strip > span:first-child {
     width: 100%;
     text-align: center;
-    font-size: 8px;
+    font-size: 12px;
   }
   .sc-discipline-strip > span:first-child br {
     display: none;
@@ -1180,7 +1181,7 @@
     margin-left: 5px;
   }
   .sc-discipline-strip > span {
-    font-size: 11px;
+    font-size: 12px;
   }
   .sc-section {
     padding: 55px 22px;
@@ -1219,7 +1220,7 @@
     font-size: 14px;
   }
   .sc-card-tag {
-    font-size: 9px;
+    font-size: 12px;
   }
   .sc-showcase {
     padding: 55px 18px;
@@ -1235,7 +1236,7 @@
     font-size: 14px;
   }
   .sc-preview-top > span:nth-child(2) {
-    font-size: 6px;
+    font-size: 12px;
     letter-spacing: 1px;
   }
   .sc-preview-avatar {
@@ -1254,11 +1255,11 @@
     font-size: 18px;
   }
   .sc-preview-heading > div > span {
-    font-size: 6px;
+    font-size: 12px;
     letter-spacing: 1px;
   }
   .sc-preview-tag {
-    font-size: 7px;
+    font-size: 12px;
     padding: 4px 6px;
   }
   .sc-project-banner {
@@ -1270,10 +1271,10 @@
     letter-spacing: -0.6px;
   }
   .sc-project-banner > div > span {
-    font-size: 6px;
+    font-size: 12px;
   }
   .sc-project-banner p {
-    font-size: 8px;
+    font-size: 14px;
   }
   .sc-completion {
     padding: 5px 0 5px 12px;
@@ -1282,7 +1283,7 @@
     font-size: 26px;
   }
   .sc-completion > span {
-    font-size: 7px !important;
+    font-size: 12px !important;
   }
   .sc-preview-stats {
     gap: 6px;
@@ -1292,7 +1293,7 @@
     padding: 10px 7px;
   }
   .sc-preview-stats span {
-    font-size: 7px;
+    font-size: 12px;
   }
   .sc-preview-stats strong {
     font-size: 17px;
@@ -1311,13 +1312,13 @@
     height: 80px;
   }
   .sc-project-preview figcaption {
-    font-size: 7px;
+    font-size: 12px;
     padding: 9px;
   }
   .sc-showcase-notes {
     gap: 12px;
     flex-wrap: wrap;
-    font-size: 9px;
+    font-size: 12px;
     margin-top: 20px;
   }
   .sc-showcase-notes svg {
@@ -1365,7 +1366,7 @@
     padding: 21px 0;
   }
   .sc-faq details p {
-    font-size: 13px;
+    font-size: 14px;
   }
   .sc-final {
     margin: 0 18px 45px;
@@ -1377,14 +1378,14 @@
     letter-spacing: -1.7px;
   }
   .sc-final p {
-    font-size: 13px;
+    font-size: 14px;
   }
   .sc-final > div:last-child {
     align-items: start;
     margin-top: 25px;
   }
   .sc-final > div:last-child > span {
-    font-size: 9px;
+    font-size: 12px;
   }
   .sc-footer {
     padding: 0 22px 25px;
@@ -1395,7 +1396,7 @@
     font-size: 12px;
   }
   .sc-footer-bottom {
-    font-size: 9px;
+    font-size: 12px;
     flex-wrap: wrap;
     gap: 10px;
   }
@@ -1589,7 +1590,7 @@
   backdrop-filter: blur(12px);
   border-radius: 24px;
   padding: 9px 14px;
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
   box-shadow: 0 4px 20px #0001;
 }
@@ -1680,7 +1681,7 @@ html:has(.sc-marketing) {
     gap: 8px;
   }
   .sc-nav .sc-button-small {
-    font-size: 10px;
+    font-size: 12px;
     padding: 8px 10px;
     gap: 6px;
   }
@@ -1698,4 +1699,40 @@ html:has(.sc-marketing) {
 }
 html:has(.sc-marketing[data-motion-paused]) {
   scroll-behavior: auto;
+}
+
+/* Readable supporting text, including nested text inside paragraphs. */
+.sc-marketing small {
+  font-size: 12px;
+}
+.sc-marketing p :where(a, span, strong, em, small) {
+  font-size: inherit;
+}
+.sc-drawing-label {
+  right: 44px;
+  line-height: 1.5;
+  background: #173f30e8;
+  padding: 4px 6px;
+  z-index: 1;
+}
+.sc-drawing-scale {
+  max-width: calc(100% - 44px);
+  line-height: 1.5;
+  background: #173f30df;
+  padding: 3px 5px;
+  z-index: 1;
+}
+@media (max-width: 600px) {
+  .sc-nav .sc-button-small {
+    gap: 5px;
+    padding-inline: 8px;
+  }
+}
+.sc-floating-card {
+  z-index: 2;
+}
+@media (max-width: 600px) {
+  .sc-floating-card {
+    bottom: 115px;
+  }
 }

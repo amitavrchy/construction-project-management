@@ -12,6 +12,32 @@ for (const width of [360, 768, 1280, 1920]) {
       return route.abort();
     });
     await page.goto("/");
+
+    const smallText = await page.locator(".sc-marketing").evaluate((root) =>
+      Array.from(root.querySelectorAll<HTMLElement>("*"))
+        .filter((element) => {
+          const text = Array.from(element.childNodes).some(
+            (node) =>
+              node.nodeType === Node.TEXT_NODE && node.textContent?.trim(),
+          );
+          if (
+            !text ||
+            !element.getClientRects().length ||
+            getComputedStyle(element).visibility === "hidden"
+          )
+            return false;
+          const minimum =
+            element.matches("p") || element.closest("p") ? 14 : 12;
+          return parseFloat(getComputedStyle(element).fontSize) < minimum;
+        })
+        .map((element) => ({
+          tag: element.tagName,
+          className: element.className,
+          size: getComputedStyle(element).fontSize,
+        })),
+    );
+    expect(smallText).toEqual([]);
+
     const railWidth = await page
       .locator(".sc-nav")
       .evaluate((element) => element.getBoundingClientRect().width);
