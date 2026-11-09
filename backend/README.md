@@ -24,7 +24,7 @@ npm run dev --prefix backend
 npm run dev --prefix frontend
 ```
 
-Open **http://localhost:3000**. The API uses port 4000, PostgreSQL 55432, Redis 6379. Login as **admin@sitecraft.local** with `SEED_PASSWORD`. Other seed accounts are `pm`, `engineer`, `store`, `accounts`, `supervisor`, and `contractor` at `@sitecraft.local`. They initially share the seed password; change it in Settings. Existing seed data and passwords are preserved on repeat runs.
+Open **http://localhost:3000**. The API uses port 4000, PostgreSQL 55432, Redis 6379. Login as **admin@sitecraft.local** with `SEED_PASSWORD`. Other seed accounts are `pm`, `engineer`, `store`, `accounts`, `supervisor`, and `contractor` at `@sitecraft.local`. They initially share the seed password; change it in Settings. Existing seed data and passwords are preserved on repeat runs. These are synthetic demonstration identities, not real users/customers. New production sample accounts have random discarded passwords. See [seed provenance](docs/seed-data.md); create a real protected administrator with the separate bootstrap command in the deployment guide.
 
 ## Advanced product areas
 
@@ -63,7 +63,7 @@ The backend suite covers concurrent delivery and stock issues, rollback of multi
 
 ## Infrastructure and boundaries
 
-See [deployment](docs/deployment.md), [architecture](docs/architecture.md), the [original specification](Project_spec.md) and the [frontend guide](../frontend/README.md).
+The Render/Netlify account, plan and credentials must be approved before provisioning or public deployment. See [verification results](docs/verification.md) and [deployment](docs/deployment.md), [architecture](docs/architecture.md), the [original specification](Project_spec.md) and the [frontend guide](../frontend/README.md).
 
 To keep the root strictly limited to two folders, the GitHub Actions workflow is stored as a **template** at `backend/ci/workflows/ci.yml`. GitHub does not automatically execute nested workflow templates. Local verification remains executable with `npm run verify --prefix backend`; automatic GitHub Actions would require a root `.github/workflows` directory, which is intentionally absent under the requested layout.
 

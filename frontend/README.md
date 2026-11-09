@@ -35,3 +35,9 @@ npm run test:e2e --prefix frontend
 Playwright starts/stops the compiled API and web server. Set `E2E_URL` to use an already running remote frontend. Use `SEED_PASSWORD` if the development seed uses a different password. Screenshots and traces stay inside ignored `frontend/artifacts` and `frontend/test-results`.
 
 The app uses Google Fonts with local system fallbacks. Photo/PDF bodies are fetched from authorized API file routes on demand. No public deployment has been made.
+
+## Render and Netlify readiness
+
+For Netlify use package/base directory `frontend`, configuration `frontend/netlify.toml`, build `npm run build` and publish `.next` relative to the base. `API_URL` is a server-only build destination and must point to the ownership-verified HTTPS backend. The Next.js adapter handles hosting; standalone output is used only outside Netlify. Keep the same-origin `/api` proxy so Secure/HttpOnly/SameSite Lax production cookies work without cross-site cookie exceptions. The backend requires exact allowed Origins for every mutation.
+
+Backend startup delays have explicit loading status and bounded requests. Private snapshots stay in memory; returning to the tab revalidates in the background. Password changes revoke sessions and return to sign-in. Failed writes are never retried or represented as confirmed success. Full instructions and environment names are in [deployment](../backend/docs/deployment.md), with [verification results](../backend/docs/verification.md).
