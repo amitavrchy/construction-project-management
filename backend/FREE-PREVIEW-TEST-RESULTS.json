@@ -1,0 +1,75 @@
+{
+  "project": "sitecraft",
+  "image": "sitecraft-free-preview",
+  "tested_at_utc": "2026-11-09T07:36:24.220Z",
+  "memory_limit_bytes": 536870912,
+  "memory_swap_limit_bytes": 536870912,
+  "cpus": 1,
+  "memory_observations": [
+    {
+      "phase": "cold-boot-ready",
+      "current_bytes": 200933376,
+      "peak_bytes": 244641792,
+      "events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      }
+    },
+    {
+      "phase": "authenticated-writes-and-worker",
+      "current_bytes": 204214272,
+      "peak_bytes": 254251008,
+      "events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      }
+    },
+    {
+      "phase": "restart-reseed",
+      "current_bytes": 84971520,
+      "peak_bytes": 137965568,
+      "events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      }
+    },
+    {
+      "phase": "fresh-replacement",
+      "current_bytes": 144166912,
+      "peak_bytes": 195940352,
+      "events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      }
+    }
+  ],
+  "checks": [
+    "fresh migrations/seeds, private stores, real authenticated writes, fail-closed security and worker",
+    "same-container restart/reseed preserves IDs, business edits and password hashes",
+    "clean SIGTERM exit 0",
+    "replacement without volumes creates fresh synthetic data and private login",
+    "unexpected required child failure stops siblings and exits 1"
+  ],
+  "image_id": "sha256:47c28e236dfcc91c838af32c0510b6deaa928f4ab5bd486b5a59b2a77fddf905",
+  "cold_boot_seconds": 12.3,
+  "same_container_restart_seconds": 3.4,
+  "replacement_boot_seconds": 7.2,
+  "status": "passed",
+  "peak_observed_bytes": 254251008
+}

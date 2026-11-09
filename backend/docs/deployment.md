@@ -1,5 +1,7 @@
 # Sitecraft deployment runbook
 
+The separately authorized disposable one-container Free target is documented in [FREE-PREVIEW.md](../FREE-PREVIEW.md). This guide still describes the preserved external-store production target.
+
 Prepared locally on 2026-11-09. No hosting resources or public deployments were created. Render workspace **Heyhoo** is approved; actual service plans, regions, persistent PostgreSQL/Redis and credentials still require explicit approval. Prior hosting URLs do not establish account ownership.
 
 ## Required topology

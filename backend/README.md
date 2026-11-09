@@ -72,3 +72,5 @@ Daily 08:00 Asia/Dhaka BullMQ digests record variance, overdue and retention rem
 The specification's relational stock/ledger models coexist with project-scoped JSON domain aggregates, validated by strict schemas and transactional reference checks. There are no financial delete endpoints. Monetary transaction values remain bounded by signed integer paisa limits; migrate ledger and stock cost fields to BigInt before supporting individual transactions above roughly BDT 20 million. Monthly payroll prorates recorded paid attendance by calendar days, rather than assuming paid weekends. S-curves use actual posting dates and do not invent historical earned-value measurements.
 
 The original 60 delivery commits retain owner-requested September 2026 metadata dates. Subsequent upgrades are separate commits. Development occurred in November 2026; metadata dates are not a development-time claim.
+
+For the separately authorized disposable one-container Render Free preview, use [FREE-PREVIEW.md](FREE-PREVIEW.md). The external-store production Docker target remains unchanged.
