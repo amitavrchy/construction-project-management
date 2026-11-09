@@ -202,7 +202,6 @@
   position: absolute;
   left: -5%;
   top: 17%;
-  animation: sc-rise 1.2s ease-out;
 }
 .sc-drawing:before,
 .sc-drawing:after {
@@ -249,7 +248,6 @@
   align-items: center;
   gap: 15px;
   max-width: calc(100% + 15px);
-  animation: sc-rise 0.8s ease-out;
 }
 .sc-floating-card > span {
   width: 38px;
@@ -1406,7 +1404,6 @@
   .sc-marketing *,
   .sc-marketing *:before,
   .sc-marketing *:after {
-    animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
   }
@@ -1461,14 +1458,11 @@
   width: 100%;
 }
 .sc-drawing svg {
-  animation: sc-blueprint-float 7s ease-in-out infinite;
 }
 
 .sc-floating-card {
-  animation: sc-card-float 4.5s ease-in-out infinite;
 }
 .sc-drawing:before {
-  animation: sc-cross-turn 8s ease-in-out infinite;
   transform-origin: center;
 }
 .sc-hero-copy > .sc-kicker,
@@ -1476,19 +1470,14 @@
 .sc-hero-copy > p,
 .sc-actions,
 .sc-access-note {
-  animation: sc-hero-arrive 1.2s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 .sc-hero h1 {
-  animation-delay: 0.1s;
 }
 .sc-hero-copy > p {
-  animation-delay: 0.25s;
 }
 .sc-actions {
-  animation-delay: 0.4s;
 }
 .sc-access-note {
-  animation-delay: 0.55s;
 }
 .sc-chart-bars i {
   transform-origin: bottom;
@@ -1499,8 +1488,6 @@
 .sc-feature-grid article,
 .sc-steps li,
 .sc-personas article {
-  animation: none;
-  animation-timeline: auto;
 }
 .sc-feature-top > svg {
   transition: transform 0.3s;
@@ -1517,42 +1504,6 @@
   transform: translate(3px, -3px);
 }
 
-@keyframes sc-blueprint-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-@keyframes sc-card-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-12px);
-  }
-}
-@keyframes sc-cross-turn {
-  0%,
-  40% {
-    transform: rotate(0);
-  }
-  60%,
-  100% {
-    transform: rotate(90deg);
-  }
-}
-@keyframes sc-hero-arrive {
-  from {
-    transform: translateY(35px);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
 @media (min-width: 1500px) {
   .sc-hero h1 {
     font-size: clamp(100px, 6.2vw, 124px);
@@ -1623,7 +1574,6 @@
   .sc-marketing *,
   .sc-marketing *:before,
   .sc-marketing *:after {
-    animation: none !important;
     transition: none !important;
   }
 }
@@ -1649,7 +1599,6 @@
 .sc-marketing[data-motion-paused] *,
 .sc-marketing[data-motion-paused] *:before,
 .sc-marketing[data-motion-paused] *:after {
-  animation-play-state: paused !important;
 }
 @media (prefers-reduced-motion: reduce) {
   .sc-marketing .sc-motion-control {
@@ -1660,9 +1609,6 @@
 /* Composited blueprint reveal and surveying beam keep motion smooth on mobile. */
 .sc-drawing svg {
   will-change: transform;
-  animation:
-    sc-blueprint-reveal 1.8s cubic-bezier(0.16, 1, 0.3, 1) both,
-    sc-blueprint-float 7s ease-in-out 1.8s infinite;
 }
 .sc-drawing:after {
   content: "";
@@ -1672,28 +1618,37 @@
   width: 20%;
   height: 100%;
   background: linear-gradient(90deg, transparent, #d5ebbb24, transparent);
-  animation: sc-site-scan 6s linear infinite;
   pointer-events: none;
   will-change: transform;
 }
-@keyframes sc-blueprint-reveal {
-  from {
-    clip-path: inset(100% 0 0 0);
-  }
-  to {
-    clip-path: inset(0 0 0 0);
-  }
-}
-@keyframes sc-site-scan {
-  to {
-    transform: translateX(750%);
-  }
-}
+
 @media (prefers-reduced-motion: reduce) {
   .sc-marketing *,
   .sc-marketing *:before,
   .sc-marketing *:after {
-    animation: none !important;
     transition: none !important;
+  }
+}
+/* No autoplay: the blueprint, scan beam and project card scrub with scroll. */
+.sc-drawing svg {
+  transform: translateY(var(--sc-scroll-shift, 0px));
+  clip-path: none;
+}
+.sc-floating-card {
+  transform: translateY(var(--sc-scroll-shift, 0px));
+}
+.sc-drawing:before {
+  transform: rotate(var(--sc-scroll-angle, 0deg));
+}
+.sc-drawing:after {
+  transform: translateX(var(--sc-scan-shift, 0%));
+}
+@media (prefers-reduced-motion: reduce) {
+  .sc-drawing svg,
+  .sc-floating-card,
+  .sc-drawing:before,
+  .sc-drawing:after {
+    transform: none !important;
+    clip-path: none !important;
   }
 }

@@ -89,72 +89,71 @@ test("landing CTA reaches the existing company sign-in flow", async ({
   await expect(page.getByLabel("Work email")).toBeVisible();
 });
 
-test("motion is visible, pausable and respects reduced-motion preferences", async ({
+test("motion scrubs only with scroll, reverses, pauses and respects reduced motion", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.goto("/");
   const pause = page.getByRole("button", { name: "Pause motion", exact: true });
   await expect(pause).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
   const transform = () =>
     page
       .locator(".sc-floating-card")
       .evaluate((element) => getComputedStyle(element, null).transform);
   const initial = await transform();
+  // Deliberately sample elapsed time to catch accidental autoplay.
+  await page.waitForTimeout(180);
+  expect(await transform()).toBe(initial);
+  await page.evaluate(() => window.scrollTo(0, 320));
   await expect.poll(transform).not.toBe(initial);
-  await page
-    .locator(".sc-feature-grid article")
-    .first()
-    .scrollIntoViewIfNeeded();
-  await expect
-    .poll(() =>
-      page
-        .locator(".sc-feature-grid article")
-        .first()
-        .evaluate(
-          (element) =>
-            element
-              .getAnimations()
-              .filter((animation) => animation.playState === "running").length,
-        ),
-    )
-    .toBeGreaterThan(0);
+  const scrolled = await transform();
+  await page.waitForTimeout(180);
+  expect(await transform()).toBe(scrolled);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect.poll(transform).toBe(initial);
   await pause.click();
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () =>
-          document
-            .getAnimations()
-            .filter((animation) => animation.playState === "running").length,
-      ),
-    )
-    .toBe(0);
+  await page.evaluate(() => window.scrollTo(0, 480));
+  await page.waitForTimeout(100);
+  expect(await transform()).toBe(initial);
   await page
     .getByRole("button", { name: "Resume motion", exact: true })
     .click();
+  await expect.poll(transform).not.toBe(initial);
+  const feature = page.locator(".sc-feature-grid article").first();
+  const featureTop = await feature.evaluate(
+    (element) => element.getBoundingClientRect().top + window.scrollY,
+  );
+  await page.evaluate(
+    (top) => window.scrollTo(0, top - innerHeight * 0.9),
+    featureTop,
+  );
+  await page.evaluate(
+    () =>
+      new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      ),
+  );
+  const before = await feature.evaluate(
+    (element) => getComputedStyle(element).transform,
+  );
+  await page.evaluate(() => window.scrollBy(0, 220));
   await expect
     .poll(() =>
-      page.evaluate(
-        () =>
-          document
-            .getAnimations()
-            .filter((animation) => animation.playState === "running").length,
-      ),
+      feature.evaluate((element) => getComputedStyle(element).transform),
     )
-    .toBeGreaterThan(0);
+    .not.toBe(before);
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () =>
-          document
-            .getAnimations()
-            .filter((animation) => animation.playState === "running").length,
-      ),
-    )
-    .toBe(0);
-  await expect(
-    page.getByRole("button", { name: "Pause motion", exact: true }),
-  ).toBeHidden();
+  await expect(pause).toBeHidden();
+  await expect.poll(transform).toBe("none");
+  await page.evaluate(() => window.scrollTo(0, 0));
+  expect(await transform()).toBe("none");
+  expect(
+    await page.evaluate(
+      () =>
+        document
+          .getAnimations()
+          .filter((animation) => animation.playState === "running").length,
+    ),
+  ).toBe(0);
 });
