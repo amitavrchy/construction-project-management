@@ -2,9 +2,9 @@
   "name": "@sitecraft/api",
   "private": true,
   "scripts": {
-    "dev": "tsx watch src/main.ts",
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/main.js",
+    "dev": "node init && tsx watch src/main.ts",
+    "build": "node init && tsc -p tsconfig.json",
+    "start": "node init && node dist/main.js",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts",
     "db:generate": "prisma generate",
