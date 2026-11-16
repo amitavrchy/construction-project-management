@@ -2,9 +2,9 @@
   "name": "@sitecraft/web",
   "private": true,
   "scripts": {
-    "dev": "node init && next dev",
-    "build": "node init && next build",
-    "start": "node init && node scripts/start.mjs",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "node scripts/start.mjs",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
